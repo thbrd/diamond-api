@@ -6,6 +6,7 @@ import numpy as np
 import io
 import json
 import os
+from sklearn.cluster import KMeans
 
 app = Flask(__name__)
 CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
@@ -81,6 +82,7 @@ def process():
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
+        type_selected = request.form.get("type", "diamond")
         shape = request.form.get("shape", "square")
 
         # Afmeting controleren
@@ -108,7 +110,34 @@ def process():
         show_warning = (advies_w, advies_h) == (20, 30) or (advies_w, advies_h) == (30, 20)
 
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
-        result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
+        
+        if type_selected == "paint":
+            colors = int(request.form.get("colors", 24))
+            img_resized = image.resize((stones_w, stones_h))
+            pixels = np.array(img_resized).reshape(-1, 3)
+            kmeans = KMeans(n_clusters=colors, n_init=5, random_state=0)
+            kmeans.fit(pixels)
+            centroids = kmeans.cluster_centers_.astype(np.uint8)
+
+            # Map naar DMC
+            dists = np.linalg.norm(DMC_RGB[:, None, :] - centroids[None, :, :], axis=2)
+            nearest = np.argmin(dists, axis=0)
+            palette = DMC_RGB[nearest]
+
+            mapped = palette[kmeans.labels_].reshape(stones_h, stones_w, 3)
+
+            canvas = Image.new("RGB", (stones_w * 10, stones_h * 10), (255, 255, 255))
+            draw = ImageDraw.Draw(canvas)
+            for y in range(stones_h):
+                for x in range(stones_w):
+                    c = tuple(mapped[y, x])
+                    draw.rectangle([x*10, y*10, (x+1)*10, (y+1)*10], fill=c, outline=(200, 200, 200))
+            result = canvas
+            w, h = stones_w, stones_h
+            codes = nearest.tolist()
+        else:
+            result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
+
         codes = [int(c) for c in codes]
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
