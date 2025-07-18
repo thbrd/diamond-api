@@ -68,9 +68,9 @@ def map_to_dmc(image, width, height, stone_size=10, shape="square"):
             color = tuple(mapped[y, x])
             rect = [x * stone_size, y * stone_size, (x + 1) * stone_size, (y + 1) * stone_size]
             if shape == "round":
-            draw.ellipse(rect, fill=color, outline=(200, 200, 200))
-        else:
-            draw.rectangle(rect, fill=color, outline=(200, 200, 200))
+                draw.ellipse(rect, fill=color, outline=(200, 200, 200))
+            else:
+                draw.rectangle(rect, fill=color, outline=(200, 200, 200))
 
     return canvas, used_codes, width, height
 
