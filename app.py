@@ -8,7 +8,7 @@ import json
 import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
 
 try:
     with open("dmc_colors.json") as f:
