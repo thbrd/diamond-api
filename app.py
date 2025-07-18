@@ -101,6 +101,7 @@ def process():
 
         advies_w, advies_h = min(standaard_formaten, key=formaat_score)
         adviesformaat = f"{advies_w}x{advies_h} cm"
+        show_warning = (advies_w, advies_h) == (20, 30) or (advies_w, advies_h) == (30, 20)
 
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
@@ -114,6 +115,7 @@ def process():
         response.headers["X-Canvas-Format"] = f"{canvas_w}x{canvas_h} cm"
         response.headers["X-Stones"] = f"{w} x {h}"
         response.headers["X-Adviesformaat"] = adviesformaat
+        response.headers["X-Warning"] = "1" if show_warning else "0"
         return response
 
     except Exception as e:
