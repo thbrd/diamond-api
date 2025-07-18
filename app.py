@@ -44,7 +44,7 @@ def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=100_000):
 
     return (w_cm, h_cm), (stones_w, stones_h)
 
-def map_to_dmc(image, width, height, stone_size=10):
+def map_to_dmc(image, width, height, stone_size=10, shape="square"):
     small = image.resize((width, height), Image.Resampling.BICUBIC)
     small_pixels = np.array(small).reshape(-1, 3)
 
@@ -67,6 +67,9 @@ def map_to_dmc(image, width, height, stone_size=10):
         for x in range(width):
             color = tuple(mapped[y, x])
             rect = [x * stone_size, y * stone_size, (x + 1) * stone_size, (y + 1) * stone_size]
+            if shape == "round":
+            draw.ellipse(rect, fill=color, outline=(200, 200, 200))
+        else:
             draw.rectangle(rect, fill=color, outline=(200, 200, 200))
 
     return canvas, used_codes, width, height
@@ -78,6 +81,7 @@ def process():
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
+        shape = request.form.get("shape", "square")
 
         # Afmeting controleren
         MIN_WIDTH = 800
@@ -104,7 +108,7 @@ def process():
         show_warning = (advies_w, advies_h) == (20, 30) or (advies_w, advies_h) == (30, 20)
 
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
-        result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
+        result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
         codes = [int(c) for c in codes]
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
