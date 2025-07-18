@@ -77,28 +77,35 @@ def process():
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
+
+        # Bepaal canvasformaat
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
-        result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
-        codes = [int(c) for c in codes]
+
+        # Verklein afbeelding naar canvasgrootte
+        resized = image.resize((stones_w, stones_h), Image.Resampling.BICUBIC)
+        canvas = Image.new("RGB", (stones_w * 10, stones_h * 10), (255, 255, 255))
+        draw = ImageDraw.Draw(canvas)
+        for y in range(stones_h):
+            for x in range(stones_w):
+                color = resized.getpixel((x, y))
+                rect = [x * 10, y * 10, (x + 1) * 10, (y + 1) * 10]
+                draw.rectangle(rect, fill=color, outline=(200, 200, 200))
+
+        # Dummy lege codes opslaan voor legend (optioneel)
         with open("used_codes.json", "w") as f:
-            json.dump(codes, f)
-
-        # Sla full-size preview op
-        result.save("preview_full.png")
-
-        # Maak thumbnail
-        thumbnail = result.copy()
-        thumbnail.thumbnail((600, 600))
-        thumbnail.save("preview_thumb.png")
+            json.dump([], f)
 
         result_io = io.BytesIO()
-        thumbnail.save(result_io, format="PNG")
+        canvas.save(result_io, format="PNG")
         result_io.seek(0)
-
         response = send_file(result_io, mimetype="image/png")
         response.headers["X-Canvas-Format"] = f"{canvas_w}x{canvas_h} cm"
-        response.headers["X-Stones"] = f"{w} x {h}"
+        response.headers["X-Stones"] = f"{stones_w} x {stones_h}"
         return response
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Processing error: {str(e)}"}), 500
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -130,13 +137,6 @@ def legend():
         return send_file(output, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": f"Legend generation failed: {str(e)}"}), 500
-
-@app.route("/preview-full", methods=["GET"])
-def download_full_preview():
-    if os.path.exists("preview_full.png"):
-        return send_file("preview_full.png", mimetype="image/png", as_attachment=True, download_name="diamond_preview_full.png")
-    else:
-        return jsonify({"error": "Full preview not found"}), 404
 
 @app.route("/")
 def home():
