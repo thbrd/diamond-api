@@ -79,6 +79,7 @@ def process():
         image = Image.open(file.stream).convert("RGB")
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
+        codes = [int(c) for c in codes]
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
         result_io = io.BytesIO()
