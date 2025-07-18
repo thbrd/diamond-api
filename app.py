@@ -8,9 +8,14 @@ import os
 
 app = Flask(__name__)
 
-with open("dmc_colors.json") as f:
-    DMC_COLORS = json.load(f)
-DMC_RGB = np.array([d["rgb"] for d in DMC_COLORS])
+try:
+    with open("dmc_colors.json") as f:
+        DMC_COLORS = json.load(f)
+    DMC_RGB = np.array([d["rgb"] for d in DMC_COLORS])
+except Exception as e:
+    print("❌ Fout bij laden DMC kleuren:", e)
+    DMC_COLORS = []
+    DMC_RGB = np.array([])
 
 def map_to_dmc(image, width=60, stone_size=15):
     scale = width / image.width
@@ -35,36 +40,44 @@ def map_to_dmc(image, width=60, stone_size=15):
 
 @app.route("/process", methods=["POST"])
 def process():
-    file = request.files["image"]
-    image = Image.open(file.stream).convert("RGB")
-    result, codes = map_to_dmc(image)
-    with open("used_codes.json", "w") as f:
-        json.dump(codes, f)
-    result_io = io.BytesIO()
-    result.save(result_io, format="PNG")
-    result_io.seek(0)
-    return send_file(result_io, mimetype="image/png")
+    if "image" not in request.files:
+        return jsonify({"error": "No image provided"}), 400
+    try:
+        file = request.files["image"]
+        image = Image.open(file.stream).convert("RGB")
+        result, codes = map_to_dmc(image)
+        with open("used_codes.json", "w") as f:
+            json.dump(codes, f)
+        result_io = io.BytesIO()
+        result.save(result_io, format="PNG")
+        result_io.seek(0)
+        return send_file(result_io, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": f"Processing error: {str(e)}"}), 500
 
 @app.route("/legend", methods=["POST"])
 def legend():
-    if not os.path.exists("used_codes.json"):
-        return jsonify({"error": "No codes available"}), 400
-    with open("used_codes.json") as f:
-        codes = json.load(f)
-    used = [DMC_COLORS[c] for c in codes]
-    height = len(used) * 30
-    legend = Image.new("RGB", (300, height), (255, 255, 255))
-    draw = ImageDraw.Draw(legend)
+    try:
+        if not os.path.exists("used_codes.json"):
+            return jsonify({"error": "No codes available"}), 400
+        with open("used_codes.json") as f:
+            codes = json.load(f)
+        used = [DMC_COLORS[c] for c in codes]
+        height = len(used) * 30
+        legend = Image.new("RGB", (300, height), (255, 255, 255))
+        draw = ImageDraw.Draw(legend)
 
-    for i, color in enumerate(used):
-        draw.rectangle([10, i*30+5, 40, i*30+25], fill=tuple(color["rgb"]), outline="black")
-        draw.text((50, i*30+8), f"DMC {color['code']} - {color['name']}", fill=(0,0,0))
+        for i, color in enumerate(used):
+            draw.rectangle([10, i*30+5, 40, i*30+25], fill=tuple(color["rgb"]), outline="black")
+            draw.text((50, i*30+8), f"DMC {color['code']} - {color['name']}", fill=(0,0,0))
 
-    output = io.BytesIO()
-    legend.save(output, format="PNG")
-    output.seek(0)
-    return send_file(output, mimetype="image/png")
+        output = io.BytesIO()
+        legend.save(output, format="PNG")
+        output.seek(0)
+        return send_file(output, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": f"Legend generation failed: {str(e)}"}), 500
 
 @app.route("/")
 def home():
-    return "Diamond Painting API is live"
+    return "✅ Diamond Painting API is live"
