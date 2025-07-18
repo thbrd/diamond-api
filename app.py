@@ -111,34 +111,34 @@ def process():
 
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         
-        if type_selected == "paint":
-            colors = int(request.form.get("colors", 24))
-            img_resized = image.resize((stones_w, stones_h))
-            pixels = np.array(img_resized).reshape(-1, 3)
-            kmeans = KMeans(n_clusters=colors, n_init=5, random_state=0)
-            kmeans.fit(pixels)
-            centroids = kmeans.cluster_centers_.astype(np.uint8)
+        
+if type_selected == "paint":
+    colors = int(request.form.get("colors", 24))
+    img_resized = image.resize((stones_w, stones_h))
+    pixels = np.array(img_resized).reshape(-1, 3)
+    kmeans = KMeans(n_clusters=colors, n_init=5, random_state=0)
+    kmeans.fit(pixels)
+    centroids = kmeans.cluster_centers_.astype(np.uint8)
 
-            # Map naar DMC
-            dists = np.linalg.norm(DMC_RGB[:, None, :] - centroids[None, :, :], axis=2)
-            nearest = np.argmin(dists, axis=0)
-            palette = DMC_RGB[nearest]
+    dists = np.linalg.norm(DMC_RGB[:, None, :] - centroids[None, :, :], axis=2)
+    nearest = np.argmin(dists, axis=0)
+    palette = DMC_RGB[nearest]
 
-            mapped = palette[kmeans.labels_].reshape(stones_h, stones_w, 3)
+    labels = kmeans.labels_
+    mapped = palette[labels].reshape(stones_h, stones_w, 3)
 
-            canvas = Image.new("RGB", (stones_w * 10, stones_h * 10), (255, 255, 255))
-            draw = ImageDraw.Draw(canvas)
-            for y in range(stones_h):
-                for x in range(stones_w):
-                    c = tuple(mapped[y, x])
-                    draw.rectangle([x*10, y*10, (x+1)*10, (y+1)*10], fill=c, outline=(200, 200, 200))
-            result = canvas
-            w, h = stones_w, stones_h
-            codes = nearest.tolist()
-        else:
-            result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
-
-        codes = [int(c) for c in codes]
+    canvas = Image.new("RGB", (stones_w * 10, stones_h * 10), (255, 255, 255))
+    draw = ImageDraw.Draw(canvas)
+    for y in range(stones_h):
+        for x in range(stones_w):
+            c = tuple(mapped[y, x])
+            draw.rectangle([x * 10, y * 10, (x + 1) * 10, (y + 1) * 10], fill=c, outline=(180, 180, 180))
+    result = canvas
+    w, h = stones_w, stones_h
+    codes = nearest.tolist()
+else:
+    result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
+codes = [int(c) for c in codes]
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
         result_io = io.BytesIO()
