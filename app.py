@@ -112,6 +112,7 @@ def process():
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         
         
+
 if type_selected == "paint":
     colors = int(request.form.get("colors", 24))
     img_resized = image.resize((stones_w, stones_h))
