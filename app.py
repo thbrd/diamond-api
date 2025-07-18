@@ -19,7 +19,7 @@ except Exception as e:
     DMC_COLORS = []
     DMC_RGB = np.array([])
 
-def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=160_000):
+def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=100_000):
     formats = [(30,40), (40,50), (50,70), (60,80)]
     img_ratio = image.width / image.height
 
@@ -45,11 +45,19 @@ def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=160_000):
 
 def map_to_dmc(image, width, height, stone_size=10):
     small = image.resize((width, height), Image.Resampling.BICUBIC)
-    pixels = np.array(small).reshape(-1, 3)
-    dists = np.linalg.norm(pixels[:, None] - DMC_RGB[None], axis=2)
-    nearest = np.argmin(dists, axis=1)
-    mapped = DMC_RGB[nearest].astype(np.uint8).reshape(height, width, 3)
-    used_codes = sorted(set(nearest.tolist()))
+    small_pixels = np.array(small).reshape(-1, 3)
+
+    mapped_pixels = []
+    used_codes = set()
+
+    for pixel in small_pixels:
+        dists = np.linalg.norm(DMC_RGB - pixel, axis=1)
+        nearest = np.argmin(dists)
+        mapped_pixels.append(DMC_RGB[nearest])
+        used_codes.add(nearest)
+
+    mapped = np.array(mapped_pixels, dtype=np.uint8).reshape(height, width, 3)
+    used_codes = sorted(list(used_codes))
 
     canvas = Image.new("RGB", (width * stone_size, height * stone_size), (255, 255, 255))
     draw = ImageDraw.Draw(canvas)
