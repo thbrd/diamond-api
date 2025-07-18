@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw
 import numpy as np
 import io
 import json
+import os
 
 app = Flask(__name__)
 
@@ -37,17 +38,19 @@ def process():
     file = request.files["image"]
     image = Image.open(file.stream).convert("RGB")
     result, codes = map_to_dmc(image)
+    with open("used_codes.json", "w") as f:
+        json.dump(codes, f)
     result_io = io.BytesIO()
     result.save(result_io, format="PNG")
     result_io.seek(0)
-    request.environ["legend_codes"] = codes
     return send_file(result_io, mimetype="image/png")
 
 @app.route("/legend", methods=["POST"])
 def legend():
-    codes = request.environ.get("legend_codes")
-    if not codes:
+    if not os.path.exists("used_codes.json"):
         return jsonify({"error": "No codes available"}), 400
+    with open("used_codes.json") as f:
+        codes = json.load(f)
     used = [DMC_COLORS[c] for c in codes]
     height = len(used) * 30
     legend = Image.new("RGB", (300, height), (255, 255, 255))
