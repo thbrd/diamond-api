@@ -73,30 +73,29 @@ def map_to_dmc(image, width, height, stone_size=10):
 
 @app.route("/process", methods=["POST"])
 def process():
-    # Voeg check toe voor minimale afmetingen
-    MIN_WIDTH = 800
-    MIN_HEIGHT = 800
-
     if "image" not in request.files:
         return jsonify({"error": "No image provided"}), 400
     try:
         file = request.files["image"]
-        
-image = Image.open(file.stream).convert("RGB")
-    if image.width < MIN_WIDTH or image.height < MIN_HEIGHT:
-        return jsonify({"error": "De foto is te klein voor een scherp eindresultaat. Upload een grotere afbeelding."}), 400
+        image = Image.open(file.stream).convert("RGB")
 
-    # Bepaal adviesformaat
-    max_canvas_cm = 60
-    aspect_ratio = image.width / image.height
-    if aspect_ratio >= 1:
-        long_side = min(max_canvas_cm, int(image.width / 50))
-        short_side = int(long_side / aspect_ratio)
-        adviesformaat = f"{long_side}x{short_side} cm"
-    else:
-        long_side = min(max_canvas_cm, int(image.height / 50))
-        short_side = int(long_side * aspect_ratio)
-        adviesformaat = f"{short_side}x{long_side} cm"
+        # Afmeting controleren
+        MIN_WIDTH = 800
+        MIN_HEIGHT = 800
+        if image.width < MIN_WIDTH or image.height < MIN_HEIGHT:
+            return jsonify({"error": "De foto is te klein voor een scherp eindresultaat. Upload een grotere afbeelding."}), 400
+
+        # Adviesformaat berekenen
+        max_canvas_cm = 60
+        aspect_ratio = image.width / image.height
+        if aspect_ratio >= 1:
+            long_side = min(max_canvas_cm, int(image.width / 50))
+            short_side = int(long_side / aspect_ratio)
+            adviesformaat = f"{long_side}x{short_side} cm"
+        else:
+            long_side = min(max_canvas_cm, int(image.height / 50))
+            short_side = int(long_side * aspect_ratio)
+            adviesformaat = f"{short_side}x{long_side} cm"
 
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
@@ -111,13 +110,11 @@ image = Image.open(file.stream).convert("RGB")
         response.headers["X-Stones"] = f"{w} x {h}"
         response.headers["X-Adviesformaat"] = adviesformaat
         return response
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"Processing error: {str(e)}"}), 500
-
-    except Exception as e:
-        return jsonify({"error": f"Legend generation failed: {str(e)}"}), 500
 
 @app.route("/")
 def home():
