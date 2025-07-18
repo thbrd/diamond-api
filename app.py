@@ -85,17 +85,22 @@ def process():
         if image.width < MIN_WIDTH or image.height < MIN_HEIGHT:
             return jsonify({"error": "De foto is te klein voor een scherp eindresultaat. Upload een grotere afbeelding."}), 400
 
-        # Adviesformaat berekenen
-        max_canvas_cm = 60
+        # Bekende diamond painting formaten
+        standaard_formaten = [
+            (20, 30), (30, 40), (40, 50), (50, 60),
+            (60, 80), (80, 100), (90, 120), (100, 150)
+        ]
+
+        # Bepaal beeldverhouding
         aspect_ratio = image.width / image.height
-        if aspect_ratio >= 1:
-            long_side = min(max_canvas_cm, int(image.width / 50))
-            short_side = int(long_side / aspect_ratio)
-            adviesformaat = f"{long_side}x{short_side} cm"
-        else:
-            long_side = min(max_canvas_cm, int(image.height / 50))
-            short_side = int(long_side * aspect_ratio)
-            adviesformaat = f"{short_side}x{long_side} cm"
+
+        # Zoek formaat met dichtstbijzijnde verhouding
+        def formaat_score(f):
+            w, h = f
+            return abs((w / h) - aspect_ratio)
+
+        advies_w, advies_h = min(standaard_formaten, key=formaat_score)
+        adviesformaat = f"{advies_w}x{advies_h} cm"
 
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
