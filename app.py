@@ -6,7 +6,6 @@ import numpy as np
 import io
 import json
 import os
-import time
 
 app = Flask(__name__)
 CORS(app)
@@ -20,32 +19,33 @@ except Exception as e:
     DMC_COLORS = []
     DMC_RGB = np.array([])
 
-def map_to_dmc(image, width=60, stone_size=15):
-    scale = width / image.width
-    new_size = (width, int(image.height * scale))
-    small = image.resize(new_size, Image.Resampling.BICUBIC)
+def auto_suggest_format(image, max_canvas_cm=80, min_dpi=3.5):
+    # typical DPI for detailed diamond painting: 3.5 to 5 dots per mm (~90-130 DPI)
+    aspect_ratio = image.width / image.height
+
+    max_width_stones = int((max_canvas_cm * 10) * min_dpi)  # 80cm × 10 × 3.5 = 2800 stones max
+    width = min(max_width_stones, image.width)  # limit by original size if smaller
+    height = int(width / aspect_ratio)
+    return width, height
+
+def map_to_dmc(image, width, height, stone_size=10):
+    small = image.resize((width, height), Image.Resampling.BICUBIC)
     pixels = np.array(small).reshape(-1, 3)
     dists = np.linalg.norm(pixels[:, None] - DMC_RGB[None], axis=2)
     nearest = np.argmin(dists, axis=1)
-    mapped = DMC_RGB[nearest].astype(np.uint8).reshape(new_size[1], new_size[0], 3)
+    mapped = DMC_RGB[nearest].astype(np.uint8).reshape(height, width, 3)
     used_codes = sorted(set(nearest.tolist()))
 
-    canvas = Image.new("RGB", (width * stone_size, new_size[1] * stone_size), (255, 255, 255))
+    canvas = Image.new("RGB", (width * stone_size, height * stone_size), (255, 255, 255))
     draw = ImageDraw.Draw(canvas)
 
-    for y in range(new_size[1]):
+    for y in range(height):
         for x in range(width):
             color = tuple(mapped[y, x])
             rect = [x * stone_size, y * stone_size, (x + 1) * stone_size, (y + 1) * stone_size]
             draw.rectangle(rect, fill=color, outline=(200, 200, 200))
 
-    return canvas, used_codes
-
-def suggest_best_format(image, max_width_cm=100, dpi=30):
-    aspect_ratio = image.width / image.height
-    best_width_px = int(max_width_cm * dpi)
-    best_height_px = int(best_width_px / aspect_ratio)
-    return best_width_px, best_height_px
+    return canvas, used_codes, width, height
 
 @app.route("/process", methods=["POST"])
 def process():
@@ -54,16 +54,17 @@ def process():
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
-        best_width_px, best_height_px = suggest_best_format(image)
-        result, codes = map_to_dmc(image)
+        width, height = auto_suggest_format(image)
+        result, codes, w, h = map_to_dmc(image, width, height)
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
         result_io = io.BytesIO()
         result.save(result_io, format="PNG")
         result_io.seek(0)
         response = send_file(result_io, mimetype="image/png")
-        response.headers["X-Best-Width"] = str(best_width_px)
-        response.headers["X-Best-Height"] = str(best_height_px)
+        response.headers["X-Suggested-Stones-Width"] = str(w)
+        response.headers["X-Suggested-Stones-Height"] = str(h)
+        response.headers["X-Recommended-Canvas-CM"] = f"{int(w/3.5)} x {int(h/3.5)} cm"
         return response
     except Exception as e:
         return jsonify({"error": f"Processing error: {str(e)}"}), 500
