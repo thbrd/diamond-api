@@ -94,30 +94,6 @@ def process():
         traceback.print_exc()
         return jsonify({"error": f"Processing error: {str(e)}"}), 500
 
-@app.route("/legend", methods=["POST"])
-def legend():
-    try:
-        if not os.path.exists("used_codes.json"):
-            return jsonify({"error": "No codes available"}), 400
-        with open("used_codes.json") as f:
-            codes = json.load(f)
-
-        if not codes or not isinstance(codes, list):
-            return jsonify({"error": "Code list is empty or invalid"}), 400
-
-        used = [DMC_COLORS[c] for c in codes if c < len(DMC_COLORS)]
-        height = len(used) * 30
-        legend = Image.new("RGB", (300, height), (255, 255, 255))
-        draw = ImageDraw.Draw(legend)
-
-        for i, color in enumerate(used):
-            draw.rectangle([10, i*30+5, 40, i*30+25], fill=tuple(color["rgb"]), outline="black")
-            draw.text((50, i*30+8), f"DMC {color['code']} - {color['name']}", fill=(0,0,0))
-
-        output = io.BytesIO()
-        legend.save(output, format="PNG")
-        output.seek(0)
-        return send_file(output, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": f"Legend generation failed: {str(e)}"}), 500
 
