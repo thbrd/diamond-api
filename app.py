@@ -11,6 +11,14 @@ app = Flask(__name__)
 CORS(app)
 
 try:
+    with open("dmc_colors.json") as f:
+        DMC_COLORS = json.load(f)
+    DMC_RGB = np.array([d["rgb"] for d in DMC_COLORS])
+except Exception as e:
+    print("❌ Fout bij laden DMC kleuren:", e)
+    DMC_COLORS = []
+    DMC_RGB = np.array([])
+
 def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=100_000):
     formats = [(30,40), (40,50), (50,70), (60,80)]
     img_ratio = image.width / image.height
@@ -43,7 +51,9 @@ def map_to_dmc(image, width, height, stone_size=10):
     used_codes = set()
 
     for pixel in small_pixels:
+        dists = np.linalg.norm(DMC_RGB - pixel, axis=1)
         nearest = np.argmin(dists)
+        mapped_pixels.append(DMC_RGB[nearest])
         used_codes.add(nearest)
 
     mapped = np.array(mapped_pixels, dtype=np.uint8).reshape(height, width, 3)
@@ -84,6 +94,7 @@ def process():
         traceback.print_exc()
         return jsonify({"error": f"Processing error: {str(e)}"}), 500
 
+@app.route("/legend", methods=["POST"])
 def legend():
     try:
         if not os.path.exists("used_codes.json"):
@@ -94,6 +105,7 @@ def legend():
         if not codes or not isinstance(codes, list):
             return jsonify({"error": "Code list is empty or invalid"}), 400
 
+        used = [DMC_COLORS[c] for c in codes if c < len(DMC_COLORS)]
         height = len(used) * 30
         legend = Image.new("RGB", (300, height), (255, 255, 255))
         draw = ImageDraw.Draw(legend)
