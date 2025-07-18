@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image, ImageDraw
@@ -10,14 +11,6 @@ app = Flask(__name__)
 CORS(app)
 
 try:
-    with open("dmc_colors.json") as f:
-        DMC_COLORS = json.load(f)
-    DMC_RGB = np.array([d["rgb"] for d in DMC_COLORS])
-except Exception as e:
-    print("❌ Fout bij laden DMC kleuren:", e)
-    DMC_COLORS = []
-    DMC_RGB = np.array([])
-
 def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=100_000):
     formats = [(30,40), (40,50), (50,70), (60,80)]
     img_ratio = image.width / image.height
@@ -50,9 +43,7 @@ def map_to_dmc(image, width, height, stone_size=10):
     used_codes = set()
 
     for pixel in small_pixels:
-        dists = np.linalg.norm(DMC_RGB - pixel, axis=1)
         nearest = np.argmin(dists)
-        mapped_pixels.append(DMC_RGB[nearest])
         used_codes.add(nearest)
 
     mapped = np.array(mapped_pixels, dtype=np.uint8).reshape(height, width, 3)
@@ -71,16 +62,15 @@ def map_to_dmc(image, width, height, stone_size=10):
 
 @app.route("/process", methods=["POST"])
 def process():
-    if "image" not in request.files or "session_id" not in request.form:
-        return jsonify({"error": "Afbeelding of sessie ontbreekt"}), 400
+    if "image" not in request.files:
+        return jsonify({"error": "No image provided"}), 400
     try:
-        session_id = request.form["session_id"]
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
         codes = [int(c) for c in codes]
-        with open(f"used_codes_{session_id}.json", "w") as f:
+        with open("used_codes.json", "w") as f:
             json.dump(codes, f)
         result_io = io.BytesIO()
         result.save(result_io, format="PNG")
@@ -94,22 +84,16 @@ def process():
         traceback.print_exc()
         return jsonify({"error": f"Processing error: {str(e)}"}), 500
 
-@app.route("/legend", methods=["POST"])
 def legend():
-    session_id = request.args.get("session_id")
-    if not session_id:
-        return jsonify({"error": "Session ID ontbreekt"}), 400
     try:
-        path = f"used_codes_{session_id}.json"
-        if not os.path.exists(path):
+        if not os.path.exists("used_codes.json"):
             return jsonify({"error": "No codes available"}), 400
-        with open(path) as f:
+        with open("used_codes.json") as f:
             codes = json.load(f)
 
         if not codes or not isinstance(codes, list):
             return jsonify({"error": "Code list is empty or invalid"}), 400
 
-        used = [DMC_COLORS[c] for c in codes if c < len(DMC_COLORS)]
         height = len(used) * 30
         legend = Image.new("RGB", (300, height), (255, 255, 255))
         draw = ImageDraw.Draw(legend)
