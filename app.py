@@ -19,7 +19,7 @@ except Exception as e:
     DMC_COLORS = []
     DMC_RGB = np.array([])
 
-def suggest_best_canvas_format(image, dpi_per_mm=4):
+def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=160_000):
     formats = [(30,40), (40,50), (50,70), (60,80)]
     img_ratio = image.width / image.height
 
@@ -28,12 +28,20 @@ def suggest_best_canvas_format(image, dpi_per_mm=4):
         return abs((w/h) - img_ratio)
 
     best_format = min(formats, key=format_diff)
-
     w_cm, h_cm = best_format
+
     stones_w = int(w_cm * 10 * dpi_per_mm)
     stones_h = int(h_cm * 10 * dpi_per_mm)
 
-    return best_format, (stones_w, stones_h)
+    total = stones_w * stones_h
+    if total > max_stones:
+        scale = (max_stones / total) ** 0.5
+        stones_w = int(stones_w * scale)
+        stones_h = int(stones_h * scale)
+        w_cm = round(stones_w / (10 * dpi_per_mm))
+        h_cm = round(stones_h / (10 * dpi_per_mm))
+
+    return (w_cm, h_cm), (stones_w, stones_h)
 
 def map_to_dmc(image, width, height, stone_size=10):
     small = image.resize((width, height), Image.Resampling.BICUBIC)
