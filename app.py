@@ -19,14 +19,21 @@ except Exception as e:
     DMC_COLORS = []
     DMC_RGB = np.array([])
 
-def auto_suggest_format(image, max_canvas_cm=80, min_dpi=3.5):
-    # typical DPI for detailed diamond painting: 3.5 to 5 dots per mm (~90-130 DPI)
-    aspect_ratio = image.width / image.height
+def suggest_best_canvas_format(image, dpi_per_mm=4):
+    formats = [(30,40), (40,50), (50,70), (60,80)]
+    img_ratio = image.width / image.height
 
-    max_width_stones = int((max_canvas_cm * 10) * min_dpi)  # 80cm × 10 × 3.5 = 2800 stones max
-    width = min(max_width_stones, image.width)  # limit by original size if smaller
-    height = int(width / aspect_ratio)
-    return width, height
+    def format_diff(fmt):
+        w, h = fmt
+        return abs((w/h) - img_ratio)
+
+    best_format = min(formats, key=format_diff)
+
+    w_cm, h_cm = best_format
+    stones_w = int(w_cm * 10 * dpi_per_mm)
+    stones_h = int(h_cm * 10 * dpi_per_mm)
+
+    return best_format, (stones_w, stones_h)
 
 def map_to_dmc(image, width, height, stone_size=10):
     small = image.resize((width, height), Image.Resampling.BICUBIC)
@@ -54,17 +61,16 @@ def process():
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
-        width, height = auto_suggest_format(image)
-        result, codes, w, h = map_to_dmc(image, width, height)
+        (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
+        result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
         result_io = io.BytesIO()
         result.save(result_io, format="PNG")
         result_io.seek(0)
         response = send_file(result_io, mimetype="image/png")
-        response.headers["X-Suggested-Stones-Width"] = str(w)
-        response.headers["X-Suggested-Stones-Height"] = str(h)
-        response.headers["X-Recommended-Canvas-CM"] = f"{int(w/3.5)} x {int(h/3.5)} cm"
+        response.headers["X-Canvas-Format"] = f"{canvas_w}x{canvas_h} cm"
+        response.headers["X-Stones"] = f"{w} x {h}"
         return response
     except Exception as e:
         import traceback
