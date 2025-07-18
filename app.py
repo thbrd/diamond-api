@@ -1,11 +1,13 @@
 
 from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from sklearn.cluster import KMeans
 import io
 
 app = Flask(__name__)
+CORS(app)  # ✅ Sta alle domeinen toe (of beperk naar jouw frontend domein)
 
 @app.route("/")
 def index():
