@@ -6,6 +6,7 @@ import numpy as np
 import io
 import json
 import os
+import time
 
 app = Flask(__name__)
 CORS(app)
@@ -40,6 +41,12 @@ def map_to_dmc(image, width=60, stone_size=15):
 
     return canvas, used_codes
 
+def suggest_best_format(image, max_width_cm=100, dpi=30):
+    aspect_ratio = image.width / image.height
+    best_width_px = int(max_width_cm * dpi)
+    best_height_px = int(best_width_px / aspect_ratio)
+    return best_width_px, best_height_px
+
 @app.route("/process", methods=["POST"])
 def process():
     if "image" not in request.files:
@@ -47,13 +54,17 @@ def process():
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
+        best_width_px, best_height_px = suggest_best_format(image)
         result, codes = map_to_dmc(image)
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
         result_io = io.BytesIO()
         result.save(result_io, format="PNG")
         result_io.seek(0)
-        return send_file(result_io, mimetype="image/png")
+        response = send_file(result_io, mimetype="image/png")
+        response.headers["X-Best-Width"] = str(best_width_px)
+        response.headers["X-Best-Height"] = str(best_height_px)
+        return response
     except Exception as e:
         return jsonify({"error": f"Processing error: {str(e)}"}), 500
 
@@ -64,7 +75,11 @@ def legend():
             return jsonify({"error": "No codes available"}), 400
         with open("used_codes.json") as f:
             codes = json.load(f)
-        used = [DMC_COLORS[c] for c in codes]
+
+        if not codes or not isinstance(codes, list):
+            return jsonify({"error": "Code list is empty or invalid"}), 400
+
+        used = [DMC_COLORS[c] for c in codes if c < len(DMC_COLORS)]
         height = len(used) * 30
         legend = Image.new("RGB", (300, height), (255, 255, 255))
         draw = ImageDraw.Draw(legend)
