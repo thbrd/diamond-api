@@ -19,27 +19,28 @@ except Exception as e:
     DMC_COLORS = []
     DMC_RGB = np.array([])
 
+
 def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=100_000):
-    formats = [(30,40), (40,50), (50,70), (60,80)]
-    img_ratio = image.width / image.height
+    img_w, img_h = image.size
+    aspect_ratio = img_w / img_h
 
-    def format_diff(fmt):
-        w, h = fmt
-        return abs((w/h) - img_ratio)
+    # Stel standaard canvas hoogte in mm
+    base_height_mm = 400
+    base_width_mm = int(base_height_mm * aspect_ratio)
 
-    best_format = min(formats, key=format_diff)
-    w_cm, h_cm = best_format
-
-    stones_w = int(w_cm * 10 * dpi_per_mm)
-    stones_h = int(h_cm * 10 * dpi_per_mm)
+    stones_w = int(base_width_mm * dpi_per_mm / 10)
+    stones_h = int(base_height_mm * dpi_per_mm / 10)
 
     total = stones_w * stones_h
     if total > max_stones:
         scale = (max_stones / total) ** 0.5
         stones_w = int(stones_w * scale)
         stones_h = int(stones_h * scale)
-        w_cm = round(stones_w / (10 * dpi_per_mm))
-        h_cm = round(stones_h / (10 * dpi_per_mm))
+        base_width_mm = int(stones_w * 10 / dpi_per_mm)
+        base_height_mm = int(stones_h * 10 / dpi_per_mm)
+
+    w_cm = round(base_width_mm / 10)
+    h_cm = round(base_height_mm / 10)
 
     return (w_cm, h_cm), (stones_w, stones_h)
 
@@ -72,11 +73,31 @@ def map_to_dmc(image, width, height, stone_size=10):
 
 @app.route("/process", methods=["POST"])
 def process():
+    # Voeg check toe voor minimale afmetingen
+    MIN_WIDTH = 800
+    MIN_HEIGHT = 800
+
     if "image" not in request.files:
         return jsonify({"error": "No image provided"}), 400
     try:
         file = request.files["image"]
-        image = Image.open(file.stream).convert("RGB")
+        
+image = Image.open(file.stream).convert("RGB")
+    if image.width < MIN_WIDTH or image.height < MIN_HEIGHT:
+        return jsonify({"error": "De foto is te klein voor een scherp eindresultaat. Upload een grotere afbeelding."}), 400
+
+    # Bepaal adviesformaat
+    max_canvas_cm = 60
+    aspect_ratio = image.width / image.height
+    if aspect_ratio >= 1:
+        long_side = min(max_canvas_cm, int(image.width / 50))
+        short_side = int(long_side / aspect_ratio)
+        adviesformaat = f"{long_side}x{short_side} cm"
+    else:
+        long_side = min(max_canvas_cm, int(image.height / 50))
+        short_side = int(long_side * aspect_ratio)
+        adviesformaat = f"{short_side}x{long_side} cm"
+
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
         codes = [int(c) for c in codes]
@@ -88,6 +109,7 @@ def process():
         response = send_file(result_io, mimetype="image/png")
         response.headers["X-Canvas-Format"] = f"{canvas_w}x{canvas_h} cm"
         response.headers["X-Stones"] = f"{w} x {h}"
+        response.headers["X-Adviesformaat"] = adviesformaat
         return response
     except Exception as e:
         import traceback
