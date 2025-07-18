@@ -1,0 +1,92 @@
+[
+  {
+    "code": "310",
+    "name": "Black",
+    "rgb": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "code": "321",
+    "name": "Red",
+    "rgb": [
+      208,
+      0,
+      48
+    ]
+  },
+  {
+    "code": "444",
+    "name": "Lemon",
+    "rgb": [
+      255,
+      255,
+      85
+    ]
+  },
+  {
+    "code": "666",
+    "name": "Bright Red",
+    "rgb": [
+      227,
+      29,
+      66
+    ]
+  },
+  {
+    "code": "703",
+    "name": "Chartreuse",
+    "rgb": [
+      123,
+      181,
+      71
+    ]
+  },
+  {
+    "code": "742",
+    "name": "Light Tangerine",
+    "rgb": [
+      255,
+      191,
+      87
+    ]
+  },
+  {
+    "code": "820",
+    "name": "Royal Blue",
+    "rgb": [
+      14,
+      54,
+      92
+    ]
+  },
+  {
+    "code": "900",
+    "name": "Burnt Orange",
+    "rgb": [
+      209,
+      88,
+      7
+    ]
+  },
+  {
+    "code": "938",
+    "name": "Coffee Brown",
+    "rgb": [
+      54,
+      31,
+      14
+    ]
+  },
+  {
+    "code": "996",
+    "name": "Electric Blue",
+    "rgb": [
+      48,
+      194,
+      236
+    ]
+  }
+]
