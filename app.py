@@ -44,7 +44,7 @@ def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=100_000):
 
     return (w_cm, h_cm), (stones_w, stones_h)
 
-def map_to_dmc(image, width, height, stone_size=25, shape="square"):
+def map_to_dmc(image, width, height, stone_size=10, shape="square"):
     small = image.resize((width, height), Image.Resampling.BICUBIC)
     small_pixels = np.array(small).reshape(-1, 3)
 
