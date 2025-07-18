@@ -5,8 +5,10 @@ import numpy as np
 import io
 import json
 import os
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 try:
     with open("dmc_colors.json") as f:
