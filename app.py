@@ -1,11 +1,11 @@
 
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 from PIL import Image, ImageDraw
 import numpy as np
 import io
 import json
 import os
-from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
