@@ -67,6 +67,8 @@ def process():
         response.headers["X-Recommended-Canvas-CM"] = f"{int(w/3.5)} x {int(h/3.5)} cm"
         return response
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Processing error: {str(e)}"}), 500
 
 @app.route("/legend", methods=["POST"])
