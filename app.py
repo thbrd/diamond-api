@@ -82,9 +82,19 @@ def process():
         codes = [int(c) for c in codes]
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
+
+        # Sla full-size preview op
+        result.save("preview_full.png")
+
+        # Maak thumbnail
+        thumbnail = result.copy()
+        thumbnail.thumbnail((600, 600))
+        thumbnail.save("preview_thumb.png")
+
         result_io = io.BytesIO()
-        result.save(result_io, format="PNG")
+        thumbnail.save(result_io, format="PNG")
         result_io.seek(0)
+
         response = send_file(result_io, mimetype="image/png")
         response.headers["X-Canvas-Format"] = f"{canvas_w}x{canvas_h} cm"
         response.headers["X-Stones"] = f"{w} x {h}"
@@ -120,6 +130,13 @@ def legend():
         return send_file(output, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": f"Legend generation failed: {str(e)}"}), 500
+
+@app.route("/preview-full", methods=["GET"])
+def download_full_preview():
+    if os.path.exists("preview_full.png"):
+        return send_file("preview_full.png", mimetype="image/png", as_attachment=True, download_name="diamond_preview_full.png")
+    else:
+        return jsonify({"error": "Full preview not found"}), 404
 
 @app.route("/")
 def home():
