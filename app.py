@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image, ImageDraw
@@ -72,15 +71,16 @@ def map_to_dmc(image, width, height, stone_size=10):
 
 @app.route("/process", methods=["POST"])
 def process():
-    if "image" not in request.files:
-        return jsonify({"error": "No image provided"}), 400
+    if "image" not in request.files or "session_id" not in request.form:
+        return jsonify({"error": "Afbeelding of sessie ontbreekt"}), 400
     try:
+        session_id = request.form["session_id"]
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
         codes = [int(c) for c in codes]
-        with open("used_codes.json", "w") as f:
+        with open(f"used_codes_{session_id}.json", "w") as f:
             json.dump(codes, f)
         result_io = io.BytesIO()
         result.save(result_io, format="PNG")
@@ -96,10 +96,14 @@ def process():
 
 @app.route("/legend", methods=["POST"])
 def legend():
+    session_id = request.args.get("session_id")
+    if not session_id:
+        return jsonify({"error": "Session ID ontbreekt"}), 400
     try:
-        if not os.path.exists("used_codes.json"):
+        path = f"used_codes_{session_id}.json"
+        if not os.path.exists(path):
             return jsonify({"error": "No codes available"}), 400
-        with open("used_codes.json") as f:
+        with open(path) as f:
             codes = json.load(f)
 
         if not codes or not isinstance(codes, list):
