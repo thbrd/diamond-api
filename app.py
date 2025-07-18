@@ -112,6 +112,12 @@ def home():
     return "✅ Diamond Painting API is live"
 
 
+
+
+
+
+
+
 @app.route("/process_preview", methods=["POST"])
 def process_preview():
     if "image" not in request.files:
@@ -120,7 +126,7 @@ def process_preview():
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
 
-        # Genereer full size canvas (zoals bij /process_full)
+        # Genereer full size canvas
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         resized = image.resize((stones_w, stones_h), Image.Resampling.BICUBIC)
         canvas = Image.new("RGB", (stones_w * 10, stones_h * 10), (255, 255, 255))
@@ -131,11 +137,11 @@ def process_preview():
                 rect = [x * 10, y * 10, (x + 1) * 10, (y + 1) * 10]
                 draw.rectangle(rect, fill=color, outline=(200, 200, 200))
 
-        # Maak preview (breedte max 800px)
+        # Maak preview
         preview = canvas.copy()
         max_width = 800
-        w_percent = (max_width / float(preview.size[0]))
-        h_size = int((float(preview.size[1]) * float(w_percent)))
+        w_percent = max_width / preview.size[0]
+        h_size = int(preview.size[1] * w_percent)
         preview = preview.resize((max_width, h_size), Image.Resampling.LANCZOS)
 
         io_preview = io.BytesIO()
@@ -144,6 +150,7 @@ def process_preview():
         return send_file(io_preview, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": f"Preview processing error: {str(e)}"}), 500
+
 
 @app.route("/process_full", methods=["POST"])
 def process_full():
