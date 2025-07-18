@@ -70,7 +70,6 @@ def map_to_dmc(image, width, height, stone_size=10):
 
     return canvas, used_codes, width, height
 
-
 @app.route("/process", methods=["POST"])
 def process():
     if "image" not in request.files:
@@ -78,42 +77,17 @@ def process():
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
-
-        # Gebruik originele afmetingen
-        width, height = image.size
-
-        # Mappen naar DMC met originele afmeting
-        full_canvas, codes, _, _ = map_to_dmc(image, width, height)
+        (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
+        result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
         codes = [int(c) for c in codes]
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
-
-        # Preview maken (geschaald, bijvoorbeeld breedte 300px behoud aspect ratio)
-        preview_width = 300
-        ratio = preview_width / full_canvas.width
-        preview_height = int(full_canvas.height * ratio)
-        preview = full_canvas.resize((preview_width, preview_height), Image.Resampling.LANCZOS)
-
-        # Beide versies in geheugen
-        full_io = io.BytesIO()
-        preview_io = io.BytesIO()
-        full_canvas.save(full_io, format="PNG")
-        preview.save(preview_io, format="PNG")
-        full_io.seek(0)
-        preview_io.seek(0)
-
-        # Voeg beide bestanden toe aan multipart response
-        from flask import send_file, make_response
-        import zipfile
-
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr("diamond_painting.png", full_io.read())
-            zf.writestr("preview.png", preview_io.read())
-        zip_buffer.seek(0)
-
-        response = send_file(zip_buffer, mimetype="application/zip", as_attachment=True, download_name="diamond_result.zip")
-        response.headers["X-Stones"] = f"{width} x {height}"
+        result_io = io.BytesIO()
+        result.save(result_io, format="PNG")
+        result_io.seek(0)
+        response = send_file(result_io, mimetype="image/png")
+        response.headers["X-Canvas-Format"] = f"{canvas_w}x{canvas_h} cm"
+        response.headers["X-Stones"] = f"{w} x {h}"
         return response
     except Exception as e:
         import traceback
