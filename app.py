@@ -70,11 +70,25 @@ def map_to_dmc(image, width, height, stone_size=10):
 
     return canvas, used_codes, width, height
 
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Processing error: {str(e)}"}), 500
+@app.route("/process", methods=["POST"])
+def process():
+    if "image" not in request.files:
+        return jsonify({"error": "No image provided"}), 400
+    try:
+        file = request.files["image"]
+        image = Image.open(file.stream).convert("RGB")
+        (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
+        result, codes, w, h = map_to_dmc(image, stones_w, stones_h)
+        codes = [int(c) for c in codes]
+        with open("used_codes.json", "w") as f:
+            json.dump(codes, f)
+        result_io = io.BytesIO()
+        result.save(result_io, format="PNG")
+        result_io.seek(0)
+        response = send_file(result_io, mimetype="image/png")
+        response.headers["X-Canvas-Format"] = f"{canvas_w}x{canvas_h} cm"
+        response.headers["X-Stones"] = f"{w} x {h}"
+        return response
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -110,74 +124,6 @@ def legend():
 @app.route("/")
 def home():
     return "✅ Diamond Painting API is live"
-
-
-
-
-
-
-
-
-@app.route("/process_preview", methods=["POST"])
-def process_preview():
-    if "image" not in request.files:
-        return jsonify({"error": "No image provided"}), 400
-    try:
-        file = request.files["image"]
-        image = Image.open(file.stream).convert("RGB")
-
-        # Genereer full size canvas
-        (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
-        resized = image.resize((stones_w, stones_h), Image.Resampling.BICUBIC)
-        canvas = Image.new("RGB", (stones_w * 10, stones_h * 10), (255, 255, 255))
-        draw = ImageDraw.Draw(canvas)
-        for y in range(stones_h):
-            for x in range(stones_w):
-                color = resized.getpixel((x, y))
-                rect = [x * 10, y * 10, (x + 1) * 10, (y + 1) * 10]
-                draw.rectangle(rect, fill=color, outline=(200, 200, 200))
-
-        # Maak preview
-        preview = canvas.copy()
-        max_width = 800
-        w_percent = max_width / preview.size[0]
-        h_size = int(preview.size[1] * w_percent)
-        preview = preview.resize((max_width, h_size), Image.Resampling.LANCZOS)
-
-        io_preview = io.BytesIO()
-        preview.save(io_preview, format="PNG")
-        io_preview.seek(0)
-        return send_file(io_preview, mimetype="image/png")
-    except Exception as e:
-        return jsonify({"error": f"Preview processing error: {str(e)}"}), 500
-
-
-@app.route("/process_full", methods=["POST"])
-def process_full():
-    if "image" not in request.files:
-        return jsonify({"error": "No image provided"}), 400
-    try:
-        file = request.files["image"]
-        image = Image.open(file.stream).convert("RGB")
-
-        # Genereer full size canvas
-        (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
-        resized = image.resize((stones_w, stones_h), Image.Resampling.BICUBIC)
-        canvas = Image.new("RGB", (stones_w * 10, stones_h * 10), (255, 255, 255))
-        draw = ImageDraw.Draw(canvas)
-        for y in range(stones_h):
-            for x in range(stones_w):
-                color = resized.getpixel((x, y))
-                rect = [x * 10, y * 10, (x + 1) * 10, (y + 1) * 10]
-                draw.rectangle(rect, fill=color, outline=(200, 200, 200))
-
-        result_io = io.BytesIO()
-        canvas.save(result_io, format="PNG")
-        result_io.seek(0)
-        return send_file(result_io, mimetype="image/png", as_attachment=True, download_name="volledige_afbeelding.png")
-    except Exception as e:
-        return jsonify({"error": f"Full image processing error: {str(e)}"}), 500
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
