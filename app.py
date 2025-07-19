@@ -122,7 +122,7 @@ def process():
             w, h = result.size[0] // 10, result.size[1] // 10
         else:
             result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
-codes = [int(c) for c in codes]
+            codes = [int(c) for c in codes]
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
         result_io = io.BytesIO()
