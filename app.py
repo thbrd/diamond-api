@@ -10,7 +10,6 @@ from paintbynumbersgenerator import generate_paint_by_numbers
 from diamondpaintinggenerator import generate_diamond_painting
 from utils import log_request, get_logs, clear_generated_files
 
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "web", "static")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 app = Flask(__name__, static_folder="static")
 app.secret_key = "supersecretkey"
@@ -19,14 +18,10 @@ CORS(app)
 @app.route("/process-numbers", methods=["POST"])
 def process_numbers():
     if "image" not in request.files:
-        return jsonify({"error": "No image provided"}), 400
-    base_url = "http://91.98.21.195:5000"
-        return jsonify({
             "canvas": f"{base_url}/static/{canvas_filename}",
             "painted": f"{base_url}/static/{painted_filename}",
             "download_canvas": f"{base_url}/static/{canvas_filename}",
             "download_painted": f"{base_url}/static/{painted_filename}"
-        return jsonify({"error": "No image provided"}), 400
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
@@ -56,7 +51,7 @@ def process_numbers():
         painted_preview.save(painted_io, format="PNG")
         painted_b64 = base64.b64encode(painted_io.getvalue()).decode("utf-8")
 
-    base_url = "http://91.98.21.195:5000"
+        base_url = "http://91.98.21.195:5000"
         return jsonify({
             "canvas": f"{base_url}/static/{canvas_filename}",
             "painted": f"{base_url}/static/{painted_filename}",
@@ -69,7 +64,7 @@ def process_numbers():
             "download_painted": f"/static/{painted_filename}"
         })
     except Exception as e:
-    base_url = "http://91.98.21.195:5000"
+        base_url = "http://91.98.21.195:5000"
         return jsonify({
             "canvas": f"{base_url}/static/{canvas_filename}",
             "painted": f"{base_url}/static/{painted_filename}",
