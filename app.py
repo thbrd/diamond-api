@@ -24,15 +24,24 @@ def process_numbers():
         num_colors = int(request.form.get("colors", 24))
 
         log_request("paintbynumbers")
-        canvas_img, painted_img = generate_paint_by_numbers(image, num_colors)
+        result_img = generate_paint_by_numbers(image, num_colors)
+
+        unique_id = str(uuid.uuid4())
+        filename = f"paintbynumbers_{unique_id}.png"
+        save_path = os.path.join(STATIC_DIR, filename)
+        result_img.save(save_path)
+
+        base_url = "http://91.98.21.195:5000"
+        return jsonify({
+            "image": f"{base_url}/static/{filename}",
+            "download": f"{base_url}/static/{filename}"
+        })
 
         unique_id = str(uuid.uuid4())
         canvas_filename = f"canvas_{unique_id}.png"
         painted_filename = f"painted_{unique_id}.png"
         canvas_path = os.path.join(STATIC_DIR, canvas_filename)
         painted_path = os.path.join(STATIC_DIR, painted_filename)
-        canvas_img.save(canvas_path)
-        painted_img.save(painted_path)
 
         base_url = "http://91.98.21.195:5000"
         return jsonify({
