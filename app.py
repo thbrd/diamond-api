@@ -2,7 +2,7 @@ import base64
 import uuid
 import os
 import io
-from flask import Flask, request, jsonify, send_file, session, redirec, Response
+from flask import Flask, request, jsonify, send_file, session, redirect
 from flask_cors import CORS
 from PIL import Image
 from paintbynumbersgenerator import generate_paint_by_numbers
@@ -24,14 +24,15 @@ def process_numbers():
         num_colors = int(request.form.get("colors", 24))
 
         log_request("paintbynumbers")
-        result_img = generate_paint_by_numbers(image, num_colors)
-        return Response(json.dumps({
+        canvas_img, painted_img = generate_paint_by_numbers(image, num_colors)
 
         unique_id = str(uuid.uuid4())
         canvas_filename = f"canvas_{unique_id}.png"
         painted_filename = f"painted_{unique_id}.png"
         canvas_path = os.path.join(STATIC_DIR, canvas_filename)
         painted_path = os.path.join(STATIC_DIR, painted_filename)
+        canvas_img.save(canvas_path)
+        painted_img.save(painted_path)
 
         base_url = "http://91.98.21.195:5000"
         return jsonify({
@@ -39,7 +40,7 @@ def process_numbers():
             "painted": f"{base_url}/static/{painted_filename}",
             "download_canvas": f"{base_url}/static/{canvas_filename}",
             "download_painted": f"{base_url}/static/{painted_filename}"
-        }), mimetype="application/json")
+        })
     except Exception as e:
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 
