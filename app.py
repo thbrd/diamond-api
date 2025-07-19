@@ -7,6 +7,7 @@ import io
 import json
 import os
 from sklearn.cluster import KMeans
+from paint_to_numbers import paint_to_numbers
 
 app = Flask(__name__)
 CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
@@ -116,7 +117,9 @@ def process():
 
         
         if type_selected == "paint":
-            result, codes, w, h = generate_paint_by_numbers_image(image, stones_w, stones_h, int(request.form.get("colors", 24)))
+            result, region_map = paint_to_numbers(image, int(request.form.get("colors", 24)))
+            codes = list(region_map.keys())
+            w, h = result.size[0] // 10, result.size[1] // 10
         else:
             result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
 codes = [int(c) for c in codes]
