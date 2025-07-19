@@ -6,8 +6,6 @@ import numpy as np
 import io
 import json
 import os
-from sklearn.cluster import KMeans
-from paint_to_numbers import paint_to_numbers
 
 app = Flask(__name__)
 CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
@@ -83,7 +81,6 @@ def process():
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
-        type_selected = request.form.get("type", "diamond")
         shape = request.form.get("shape", "square")
 
         # Afmeting controleren
@@ -111,18 +108,8 @@ def process():
         show_warning = (advies_w, advies_h) == (20, 30) or (advies_w, advies_h) == (30, 20)
 
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
-        
-        
-
-
-        
-        if type_selected == "paint":
-            result, region_map = paint_to_numbers(image, int(request.form.get("colors", 24)))
-            codes = list(region_map.keys())
-            w, h = result.size[0] // 10, result.size[1] // 10
-        else:
-            result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
-            codes = [int(c) for c in codes]
+        result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
+        codes = [int(c) for c in codes]
         with open("used_codes.json", "w") as f:
             json.dump(codes, f)
         result_io = io.BytesIO()
