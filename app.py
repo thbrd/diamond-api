@@ -1,4 +1,3 @@
-
 import base64
 import uuid
 import os
@@ -11,8 +10,6 @@ from diamondpaintinggenerator import generate_diamond_painting
 from utils import log_request, get_logs, clear_generated_files
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
-os.makedirs(STATIC_DIR, exist_ok=True)
-
 app = Flask(__name__, static_folder="static")
 app.secret_key = "supersecretkey"
 CORS(app)
@@ -27,19 +24,58 @@ def process_numbers():
         num_colors = int(request.form.get("colors", 24))
 
         log_request("paintbynumbers")
-        result_image = generate_paint_by_numbers(image, num_colors)
+        canvas_img, painted_img = generate_paint_by_numbers(image, num_colors)
 
         unique_id = str(uuid.uuid4())
-        result_path = os.path.join(STATIC_DIR, f"{unique_id}_pbn.png")
-        result_image.save(result_path)
+        canvas_filename = f"canvas_{unique_id}.png"
+        painted_filename = f"painted_{unique_id}.png"
+        canvas_path = os.path.join(STATIC_DIR, canvas_filename)
+        painted_path = os.path.join(STATIC_DIR, painted_filename)
+        canvas_img.save(canvas_path)
+        painted_img.save(painted_path)
 
+        base_url = "http://91.98.21.195:5000"
         return jsonify({
-            "preview": f"http://91.98.21.195:5000/static/{unique_id}_pbn.png"
+            "canvas": f"{base_url}/static/{canvas_filename}",
+            "painted": f"{base_url}/static/{painted_filename}",
+            "download_canvas": f"{base_url}/static/{canvas_filename}",
+            "download_painted": f"{base_url}/static/{painted_filename}"
         })
-
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 
+@app.route("/logs")
+def logs():
+    return jsonify(get_logs())
+
+@app.route("/cleanup")
+def cleanup():
+    removed = clear_generated_files()
+    return jsonify({"removed_files": removed})
+
+@app.route("/admin")
+def admin():
+    if not session.get("logged_in"):
+        return redirect("/login")
+    return send_file("../web/admin.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        if request.form.get("username") == "admin" and request.form.get("password") == "happyhobby":
+            session["logged_in"] = True
+            return redirect("/admin")
+        return "❌ Ongeldige inloggegevens", 403
+    return send_file("../web/login.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+@app.route("/")
+def home():
+    return "✅ HappyHobby backend draait"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
