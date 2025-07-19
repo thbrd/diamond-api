@@ -1,4 +1,4 @@
-from paintbynumbersgenerator import generate_paint_by_numbers
+import base64
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image, ImageDraw
@@ -6,7 +6,6 @@ import numpy as np
 import io
 import json
 import os
-import base64
 
 app = Flask(__name__)
 CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
@@ -132,10 +131,39 @@ def process():
 def home():
     return "✅ Diamond Painting API is live"
 
+
 @app.route("/process-numbers", methods=["POST"])
 def process_numbers():
     if "image" not in request.files:
         return jsonify({"error": "Geen afbeelding geüpload."}), 400
+    try:
+        file = request.files["image"]
+        image = Image.open(file.stream).convert("RGB")
+        num_colors = int(request.form.get("colors", 24))
+        canvas_img, painted_img = generate_paint_by_numbers(image, num_colors)
+
+        # previews
+        canvas_preview = canvas_img.copy()
+        painted_preview = painted_img.copy()
+        canvas_preview.thumbnail((400, 400))
+        painted_preview.thumbnail((400, 400))
+
+        # encode beide previews
+        canvas_io = io.BytesIO()
+        canvas_preview.save(canvas_io, format="PNG")
+        canvas_b64 = base64.b64encode(canvas_io.getvalue()).decode("utf-8")
+
+        painted_io = io.BytesIO()
+        painted_preview.save(painted_io, format="PNG")
+        painted_b64 = base64.b64encode(painted_io.getvalue()).decode("utf-8")
+
+        return jsonify({
+            "canvas": f"data:image/png;base64,{canvas_b64}",
+            "painted": f"data:image/png;base64,{painted_b64}"
+        })
+    except Exception as e:
+        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
+), 400
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
