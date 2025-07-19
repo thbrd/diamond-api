@@ -84,7 +84,7 @@ def logs():
 @app.route("/cleanup")
 def cleanup():
     removed = clear_generated_files()
-    return jsonify({
+        return jsonify({
             "canvas": f"{base_url}/static/{canvas_filename}",
             "painted": f"{base_url}/static/{painted_filename}",
             "download_canvas": f"{base_url}/static/{canvas_filename}",
