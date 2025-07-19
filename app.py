@@ -6,6 +6,7 @@ import numpy as np
 import io
 import json
 import os
+import base64
 
 app = Flask(__name__)
 CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
