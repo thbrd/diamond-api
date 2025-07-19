@@ -22,7 +22,6 @@ def generate_paint_by_numbers(pil_image, num_colors):
     # Contouren zoeken
     contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     canvas = np.ones_like(image) * 255
-    painted = clustered_image.copy()
     h, w = gray.shape
     label_map = labels.reshape(h, w)
 
@@ -31,19 +30,16 @@ def generate_paint_by_numbers(pil_image, num_colors):
     for cnt in contours:
         mask = np.zeros(gray.shape, dtype="uint8")
         cv2.drawContours(mask, [cnt], -1, 255, -1)
-        masked_labels = label_map[mask == 255]
-        if len(masked_labels) == 0:
+        pts = np.where(mask == 255)
+        if len(pts[0]) == 0:
             continue
-        most_common_label = np.bincount(masked_labels).argmax()
-        cv2.drawContours(canvas, [cnt], -1, (0, 0, 0), 1)
-
-        # Nummer in vlak plaatsen
+        label = label_map[pts[0][0], pts[1][0]]
+        color_number = np.where(kmeans.labels_ == label)[0][0] % num_colors + 1
         M = cv2.moments(cnt)
         if M["m00"] != 0:
             cx = int(M["m10"] / M["m00"])
             cy = int(M["m01"] / M["m00"])
-            cv2.putText(canvas, str(most_common_label + 1), (cx, cy), font, 0.4, (0, 0, 0), 1)
+            cv2.putText(canvas, str(color_number), (cx, cy), font, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.drawContours(canvas, [cnt], -1, (0, 0, 0), 1)
 
-    canvas_img = Image.fromarray(canvas)
-    painted_img = Image.fromarray(painted)
-    return canvas_img, painted_img
+    return Image.fromarray(canvas)
