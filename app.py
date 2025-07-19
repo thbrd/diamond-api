@@ -1,3 +1,4 @@
+from paintbynumbersgenerator import generate_paint_by_numbers
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image, ImageDraw
