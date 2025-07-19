@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image, ImageDraw
@@ -133,3 +132,36 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
+
+@app.route("/paint-by-numbers", methods=["POST"])
+def paint_by_numbers():
+    from paint_by_numbers import paint_by_numbers as pbn
+    import base64
+
+    if "image" not in request.files:
+        return jsonify({"error": "Geen afbeelding ontvangen."}), 400
+    try:
+        file = request.files["image"]
+        image = Image.open(file.stream).convert("RGB")
+        color_count = int(request.form.get("colors", 24))
+
+        painted, canvas = pbn(image, num_colors=color_count)
+
+        # Converteer naar base64
+        painted_io = io.BytesIO()
+        canvas_io = io.BytesIO()
+        painted.save(painted_io, format="PNG")
+        canvas.save(canvas_io, format="PNG")
+        painted_b64 = base64.b64encode(painted_io.getvalue()).decode("utf-8")
+        canvas_b64 = base64.b64encode(canvas_io.getvalue()).decode("utf-8")
+
+        return jsonify({
+            "painted": f"data:image/png;base64,{painted_b64}",
+            "canvas": f"data:image/png;base64,{canvas_b64}"
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Fout bij verwerken: {str(e)}"}), 500

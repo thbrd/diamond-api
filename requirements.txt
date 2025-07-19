@@ -1,3 +1,6 @@
 Flask
 Pillow
 numpy
+
+paint-by-numbers
+opencv-python-headless
