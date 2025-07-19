@@ -1,3 +1,7 @@
 Flask
 Pillow
 numpy
+
+scikit-learn
+matplotlib
+opencv-python

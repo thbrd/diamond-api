@@ -7,6 +7,33 @@ import io
 import json
 import os
 
+
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+import cv2
+
+def paint_by_numbers(image: Image.Image, n_colors: int = 36):
+    img = np.array(image.resize((300, 300)))  # kleine resolutie
+    img_flat = img.reshape((-1, 3))
+
+    kmeans = KMeans(n_clusters=n_colors, random_state=42, n_init='auto').fit(img_flat)
+    labels = kmeans.labels_
+    palette = np.array(kmeans.cluster_centers_, dtype=np.uint8)
+
+    segmented_flat = palette[labels]
+    segmented_img = segmented_flat.reshape(img.shape)
+
+    numbers = labels.reshape(img.shape[0], img.shape[1])
+    numbers_img = np.ones_like(img) * 255
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    for y in range(0, img.shape[0], 20):
+        for x in range(0, img.shape[1], 20):
+            label = numbers[y, x]
+            cv2.putText(numbers_img, str(label+1), (x, y), font, 0.3, (0, 0, 0), 1, cv2.LINE_AA)
+
+    return Image.fromarray(numbers_img), Image.fromarray(segmented_img)
+
 app = Flask(__name__)
 CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
 
@@ -80,6 +107,26 @@ def process():
         return jsonify({"error": "No image provided"}), 400
     try:
         file = request.files["image"]
+        technique = request.form.get("technique", "diamond")
+        if technique == "paintbynumbers":
+            color_count = int(request.form.get("colors", "36"))
+            canvas_img, paint_img = paint_by_numbers(image, color_count)
+
+            canvas_io = io.BytesIO()
+            paint_io = io.BytesIO()
+            canvas_img.save(canvas_io, format="PNG")
+            paint_img.save(paint_io, format="PNG")
+            canvas_io.seek(0)
+            paint_io.seek(0)
+
+            from zipfile import ZipFile
+            zip_buffer = io.BytesIO()
+            with ZipFile(zip_buffer, "w") as zipf:
+                zipf.writestr("canvas.png", canvas_io.read())
+                zipf.writestr("painted.png", paint_io.read())
+            zip_buffer.seek(0)
+
+            return send_file(zip_buffer, mimetype="application/zip", as_attachment=True, download_name="paint_by_numbers_preview.zip")
         image = Image.open(file.stream).convert("RGB")
         shape = request.form.get("shape", "square")
 
