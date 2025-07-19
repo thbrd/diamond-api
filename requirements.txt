@@ -1,8 +1,5 @@
-Flask
-Pillow
+flask
+flask-cors
+pillow
+opencv-python-headless
 numpy
-
-paint-by-numbers
-opencv-python-headless
-
-opencv-python-headless
