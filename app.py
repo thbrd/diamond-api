@@ -25,7 +25,7 @@ def process_numbers():
             "painted": f"{base_url}/static/{painted_filename}",
             "download_canvas": f"{base_url}/static/{canvas_filename}",
             "download_painted": f"{base_url}/static/{painted_filename}"
-        })"error": "No image provided"}), 400
+        return jsonify({"error": "No image provided"}), 400
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
