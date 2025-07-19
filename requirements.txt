@@ -4,3 +4,5 @@ numpy
 
 paint-by-numbers
 opencv-python-headless
+
+opencv-python-headless

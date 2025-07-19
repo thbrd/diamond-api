@@ -136,7 +136,7 @@ if __name__ == "__main__":
 
 @app.route("/paint-by-numbers", methods=["POST"])
 def paint_by_numbers():
-    from paint_by_numbers import paint_by_numbers as pbn
+    
     import base64
 
     if "image" not in request.files:
