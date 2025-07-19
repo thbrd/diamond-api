@@ -74,7 +74,7 @@ def map_to_dmc(image, width, height, stone_size=10, shape="square"):
 
     return canvas, used_codes, width, height
 
-@app.route("/process", methods=["POST"])
+@app.route("/process-numbers", methods=["POST"])
 def process():
     if "image" not in request.files:
         return jsonify({"error": "No image provided"}), 400
