@@ -1,1 +1,1 @@
-/mnt/data/happy_hobbykit/runtime.txt
+python-3.11

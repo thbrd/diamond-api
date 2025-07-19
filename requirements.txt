@@ -1,1 +1,3 @@
-/mnt/data/happy_hobbykit/requirements.txt
+Flask
+Pillow
+numpy
