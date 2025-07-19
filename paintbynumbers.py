@@ -1,21 +1,32 @@
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+from sklearn.cluster import KMeans
 
-def generate_paint_by_numbers(image_path, n_colors):
-    image = Image.open(image_path).convert("RGB").resize((300, 300))
-    arr = np.array(image).reshape(-1, 3)
-    unique_colors = np.linspace(0, 255, n_colors, dtype=np.uint8)
-    bins = np.linspace(0, 255, n_colors + 1)
-    quantized = np.digitize(arr, bins) - 1
-    clustered = unique_colors[quantized].reshape(image.size[1], image.size[0], 3).astype(np.uint8)
-    painted_img = Image.fromarray(clustered)
+def generate_paint_by_numbers(image_path, n_colors=24):
+    image = Image.open(image_path).convert("RGB")
+    image = image.resize((300, 300))
 
-    canvas_img = Image.new("RGB", image.size, "white")
-    draw = ImageDraw.Draw(canvas_img)
-    for y in range(0, image.size[1], 10):
-        for x in range(0, image.size[0], 10):
-            draw.rectangle([x, y, x+10, y+10], outline="black")
-            draw.text((x+2, y+2), str((x*y) % n_colors + 1), fill="black")
+    data = np.array(image).reshape(-1, 3)
+    kmeans = KMeans(n_clusters=n_colors, n_init="auto").fit(data)
+    labels = kmeans.predict(data)
+    clustered = kmeans.cluster_centers_[labels].reshape(image.size[1], image.size[0], 3).astype(np.uint8)
 
-    return painted_img, canvas_img
+    # Create painted image
+    painted = Image.fromarray(clustered)
+
+    # Create canvas image with numbers
+    canvas = Image.new("RGB", image.size, "white")
+    draw = ImageDraw.Draw(canvas)
+    font = ImageFont.load_default()
+
+    label_matrix = labels.reshape(image.size[1], image.size[0])
+    cell_size = 10
+    for y in range(0, image.size[1], cell_size):
+        for x in range(0, image.size[0], cell_size):
+            crop = label_matrix[y:y+cell_size, x:x+cell_size]
+            most_common = np.bincount(crop.flatten()).argmax()
+            draw.rectangle([x, y, x+cell_size, y+cell_size], outline="black")
+            draw.text((x + 2, y + 1), str(int(most_common)+1), fill="black", font=font)
+
+    return painted, canvas
