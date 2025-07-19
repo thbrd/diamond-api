@@ -12,13 +12,14 @@ from utils import log_request, get_logs, clear_generated_files
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "web", "static")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
-app = Flask(__name__, static_folder="static", static_folder=STATIC_DIR, static_folder="../web/static", template_folder="../web")
+app = Flask(__name__, static_folder="static")
 app.secret_key = "supersecretkey"
 CORS(app)
 
 @app.route("/process-numbers", methods=["POST"])
 def process_numbers():
     if "image" not in request.files:
+        return jsonify({"error": "No image provided"}), 400
     base_url = "http://91.98.21.195:5000"
         return jsonify({
             "canvas": f"{base_url}/static/{canvas_filename}",
