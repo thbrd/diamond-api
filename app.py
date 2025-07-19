@@ -52,3 +52,7 @@ def process_numbers():
 @app.route("/")
 def home():
     return "✅ HappyHobby API draait correct"
+    
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+
