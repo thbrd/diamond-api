@@ -1,4 +1,4 @@
-import base64
+from paintbynumbersgenerator import generate_paint_by_numbers
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image, ImageDraw
@@ -6,6 +6,7 @@ import numpy as np
 import io
 import json
 import os
+import base64
 
 app = Flask(__name__)
 CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
@@ -78,6 +79,16 @@ def map_to_dmc(image, width, height, stone_size=10, shape="square"):
 def process():
     if "image" not in request.files:
         return jsonify({"error": "No image provided"}), 400
+    try:
+        file = request.files["image"]
+        image = Image.open(file.stream).convert("RGB")
+        shape = request.form.get("shape", "square")
+
+        # Afmeting controleren
+        MIN_WIDTH = 800
+        MIN_HEIGHT = 800
+        if image.width < MIN_WIDTH or image.height < MIN_HEIGHT:
+            return jsonify({"error": "De foto is te klein voor een scherp eindresultaat. Upload een grotere afbeelding."}), 400
 
         # Bekende diamond painting formaten
         standaard_formaten = [
@@ -121,14 +132,24 @@ def process():
 def home():
     return "✅ Diamond Painting API is live"
 
-
 @app.route("/process-numbers", methods=["POST"])
 def process_numbers():
     if "image" not in request.files:
-        return jsonify({"error": "Geen afbeelding geüpload."}
-    except Exception as e:
-        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
+        return jsonify({"error": "Geen afbeelding geüpload."}), 400
+    try:
+        file = request.files["image"]
+        image = Image.open(file.stream).convert("RGB")
+        num_colors = int(request.form.get("colors", 24))
+        result = generate_paint_by_numbers(image, num_colors)
 
+        # Verkleinde preview voor weergave
+        preview = result.copy()
+        preview.thumbnail((400, 400))
+        preview_io = io.BytesIO()
+        preview.save(preview_io, format="PNG")
+        preview_b64 = base64.b64encode(preview_io.getvalue()).decode("utf-8")
+
+        return jsonify({ "preview": f"data:image/png;base64,{preview_b64}" })
     except Exception as e:
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 
