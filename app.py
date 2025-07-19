@@ -15,17 +15,11 @@ app = Flask(__name__)
 CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
 
 # Laden DMC‐kleuren voor diamond painting
-try:
-    with open("dmc_colors.json") as f:
-        DMC_COLORS = json.load(f)
-    DMC_RGB = np.array([d["rgb"] for d in DMC_COLORS])
-except Exception as e:
-    print("❌ Fout bij laden DMC kleuren:", e)
-    DMC_COLORS = []
-    DMC_RGB = np.array([])
+with open("dmc_colors.json") as f:
+    DMC_COLORS = json.load(f)
+DMC_RGB = np.array([d["rgb"] for d in DMC_COLORS])
 
 def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=100_000):
-    # … exact overgenomen uit bestaande code :contentReference[oaicite:5]{index=5} …
     img_w, img_h = image.size
     aspect_ratio = img_w / img_h
     base_height_mm = 400
@@ -44,7 +38,6 @@ def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=100_000):
     return (w_cm, h_cm), (stones_w, stones_h)
 
 def map_to_dmc(image, width, height, stone_size=10, shape="square"):
-    # … exact overgenomen uit bestaande code :contentReference[oaicite:6]{index=6} …
     small = image.resize((width, height), Image.Resampling.BICUBIC)
     small_pixels = np.array(small).reshape(-1, 3)
     mapped_pixels = []
@@ -77,40 +70,31 @@ def process():
     file = request.files["image"]
     filename = secure_filename(file.filename)
     if kind == "diamond":
-        # ↳ Diamond Painting: bestaand gedrag :contentReference[oaicite:7]{index=7}
         shape = request.form.get("shape", "square")
         image = Image.open(file.stream).convert("RGB")
         MIN_DIM = 800
         if image.width < MIN_DIM or image.height < MIN_DIM:
             return jsonify({"error": "Afbeelding te klein"}), 400
-        advies_w, advies_h = (20,30)  # ... detailberekening weggelaten ...
-        adviesformaat = f"{advies_w}x{advies_h} cm"
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
-        # opslaan naar buffer en versturen
         buf = io.BytesIO()
         result.save(buf, format="PNG"); buf.seek(0)
         resp = send_file(buf, mimetype="image/png")
-        resp.headers["X-Canvas-Format"] = adviesformaat
+        resp.headers["X-Canvas-Format"] = f"{canvas_w}x{canvas_h} cm"
         resp.headers["X-Stones"] = f"{w}x{h}"
-        resp.headers["X-Adviesformaat"] = adviesformaat
+        resp.headers["X-Adviesformaat"] = f"{canvas_w}x{canvas_h} cm"
         return resp
-
     else:
-        # ↳ Paint by Numbers :contentReference[oaicite:3]{index=3}
-        # zorg dat map images/ bestaat
         os.makedirs("images", exist_ok=True)
         saved_path = os.path.join("images", filename)
         file.save(saved_path)
         P = int(request.form.get("colors", 24))
-        N = 200  # vaste max-aantal regio's
-        # genereer PB-afbeeldingen in images/
+        N = 200
         pb_draw(filename, P, N)
         outline_fn = f"P{P} N{N} OUTLINE{filename}"
         painted_fn = f"P{P} N{N} {filename}"
         out_path = os.path.join("images", outline_fn)
         paint_path = os.path.join("images", painted_fn)
-        # lees en base64‐encode
         with open(out_path, "rb") as f:
             outline_b64 = base64.b64encode(f.read()).decode()
         with open(paint_path, "rb") as f:

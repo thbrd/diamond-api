@@ -1,7 +1,1 @@
-Flask
-Pillow
-numpy
-
-scikit-learn
-matplotlib
-opencv-python
+/mnt/data/happy_hobbykit/requirements.txt
