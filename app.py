@@ -77,7 +77,7 @@ def map_to_dmc(image, width, height, stone_size=10, shape="square"):
 @app.route("/process", methods=["POST"])
 def process():
     if "image" not in request.files:
-        return jsonify({"error": "No image provided"}, 400
+        return jsonify({"error": "No image provided"}), 400
 
         # Bekende diamond painting formaten
         standaard_formaten = [
