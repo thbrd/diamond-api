@@ -133,7 +133,6 @@ def process():
 def home():
     return "✅ Diamond Painting API is live"
 
-, 400
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
