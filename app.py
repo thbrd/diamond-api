@@ -152,7 +152,5 @@ def process_numbers():
         return jsonify({ "preview": f"data:image/png;base64,{preview_b64}" })
     except Exception as e:
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
-
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
