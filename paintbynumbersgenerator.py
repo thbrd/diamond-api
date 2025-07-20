@@ -38,7 +38,8 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
     font = cv2.FONT_HERSHEY_SIMPLEX
     scale_multiplier = 3
     font_scale = 0.4 * scale_multiplier
-    line_thickness = int(1 * scale_multiplier)for label_val in range(num_colors):
+    line_thickness = int(1 * scale_multiplier)
+for label_val in range(num_colors):
         mask = np.uint8(label_image == label_val)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
