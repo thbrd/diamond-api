@@ -3,9 +3,9 @@ import numpy as np
 import cv2
 from sklearn.cluster import KMeans
 
-def generate_paint_by_numbers(input_path, output_path, num_colors=24):
+def generate_paint_by_numbers(input_path, num_colors=24):
     img = Image.open(input_path).convert("RGB")
-    img = img.resize((1200, 1200))  # GROTERE PREVIEW
+    img = img.resize((1200, 1200))  # grotere preview
 
     img_np = np.array(img)
     h, w, _ = img_np.shape
