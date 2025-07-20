@@ -40,3 +40,5 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
             draw.text((x, y), str(label + 1), font=font, fill=(0, 0, 0))
 
     return canvas
+
+print(f'✅ Final saved to: {output_path}')
