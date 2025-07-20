@@ -57,6 +57,6 @@ for label_val in range(num_colors):
 
             contour_img = cv2.cvtColor(contour_img, cv2.COLOR_BGR2RGB)
             # === Vergelijkbaar met svgSizeMultiplier: verhoog resolutie van eindresultaat ===
-        scale_multiplier = 3
-        upscaled = cv2.resize(contour_img, (contour_img.shape[1]*scale_multiplier, contour_img.shape[0]*scale_multiplier), interpolation=cv2.INTER_NEAREST)
-        return Image.fromarray(upscaled)
+            scale_multiplier = 3
+            upscaled = cv2.resize(contour_img, (contour_img.shape[1]*scale_multiplier, contour_img.shape[0]*scale_multiplier), interpolation=cv2.INTER_NEAREST)
+            return Image.fromarray(upscaled)
