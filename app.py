@@ -21,11 +21,7 @@ def process_numbers():
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
-        raw_colors = request.form.get("colors")
-        try:
-            num_colors = int(raw_colors)
-        except (ValueError, TypeError):
-            num_colors = 24
+        num_colors = int(request.form.get("colors", 24))
 
         log_request("paintbynumbers")
         canvas_img, painted_img = generate_paint_by_numbers(image, num_colors)
@@ -35,12 +31,12 @@ def process_numbers():
         painted_filename = f"painted_{unique_id}.png"
         canvas_path = os.path.join(STATIC_DIR, canvas_filename)
         painted_path = os.path.join(STATIC_DIR, painted_filename)
-        canvas_img.save(os.path.join(STATIC_DIR, "preview.png"))
+        canvas_img.save(canvas_path)
         painted_img.save(painted_path)
 
         base_url = "http://91.98.21.195:5000"
         return jsonify({
-            "preview": f"{base_url}/static/preview.png",
+            "canvas": f"{base_url}/static/{canvas_filename}",
             "painted": f"{base_url}/static/{painted_filename}",
             "download_canvas": f"{base_url}/static/{canvas_filename}",
             "download_painted": f"{base_url}/static/{painted_filename}"

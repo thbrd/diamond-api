@@ -49,4 +49,4 @@ def generate_paint_by_numbers(pil_image, num_colors):
     canvas = canvas.convert("RGBA")
     canvas.alpha_composite(edge_overlay)
 
-    return canvas.convert("RGB")
+    return canvas.convert("RGB"), painted_image
