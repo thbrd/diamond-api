@@ -36,6 +36,8 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
     label_image = labels.reshape((img.shape[0], img.shape[1]))
     contour_img = clustered_img.copy()
     font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 1.2
+    line_thickness = 3
 
     for label_val in range(num_colors):
         mask = np.uint8(label_image == label_val)
@@ -46,14 +48,14 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
                 continue
 
             # Draw contour
-            cv2.drawContours(contour_img, [cnt], -1, (0, 0, 0), 1)
+            cv2.drawContours(contour_img, [cnt], -1, (0, 0, 0), line_thickness)
 
             # Get center of contour and label
             M = cv2.moments(cnt)
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                cv2.putText(contour_img, str(label_val + 1), (cX - 5, cY + 5), font, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
+                cv2.putText(contour_img, str(label_val + 1), (cX - 5, cY + 5), font, font_scale, (0, 0, 0), line_thickness, cv2.LINE_AA)
 
     contour_img = cv2.cvtColor(contour_img, cv2.COLOR_BGR2RGB)
     # === Vergelijkbaar met svgSizeMultiplier: verhoog resolutie van eindresultaat ===
