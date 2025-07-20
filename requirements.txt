@@ -1,3 +1,6 @@
-Flask
-Pillow
+flask
+flask-cors
+opencv-python
 numpy
+Pillow
+scikit-learn
