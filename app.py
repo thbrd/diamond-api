@@ -143,10 +143,13 @@ def process_numbers():
         result = generate_paint_by_numbers(image, num_colors)
 
         # Verkleinde preview voor weergave
-        output_path = os.path.join("static", f"paintbynumbers_fullsize.png")
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        result.save(output_path, format="PNG")
-        return jsonify({ "status": "success", "filename": "paintbynumbers_fullsize.png" })
+        preview = result.copy()
+        preview.thumbnail((400, 400))
+        preview_io = io.BytesIO()
+        preview.save(preview_io, format="PNG")
+        preview_b64 = base64.b64encode(preview_io.getvalue()).decode("utf-8")
+
+        return jsonify({ "preview": f"data:image/png;base64,{preview_b64}" })
     except Exception as e:
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 if __name__ == "__main__":
