@@ -1,26 +1,47 @@
 
-from sklearn.cluster import KMeans
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 import cv2
+import numpy as np
+from sklearn.cluster import KMeans
+from PIL import Image
 
-def generate_paint_by_numbers(image, num_colors):
-    img = image.resize((300, 300))
-    img_np = np.array(img)
+def generate_paint_by_numbers(pil_image, num_colors):
+    image = np.array(pil_image)
 
-    data = img_np.reshape((-1, 3))
-    kmeans = KMeans(n_clusters=num_colors, random_state=42).fit(data)
+    # Kleurreductie
+    pixels = image.reshape(-1, 3)
+    kmeans = KMeans(n_clusters=num_colors, random_state=42).fit(pixels)
     labels = kmeans.labels_
-    centers = kmeans.cluster_centers_.astype("uint8")
+    clustered = kmeans.cluster_centers_.astype("uint8")[labels]
+    clustered_image = clustered.reshape(image.shape)
 
-    clustered = centers[labels].reshape(img_np.shape)
-    clustered_img = Image.fromarray(clustered)
+    # Grijs voor contourdetectie
+    gray = cv2.cvtColor(clustered_image, cv2.COLOR_RGB2GRAY)
+    blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+    edged = cv2.Canny(blurred, 50, 150)
 
-    # Edge detection
-    edges = cv2.Canny(cv2.cvtColor(clustered.astype("uint8"), cv2.COLOR_RGB2GRAY), 100, 200)
-    edges_inv = cv2.bitwise_not(edges)
-    edge_img = Image.fromarray(edges_inv).convert("L").convert("RGB")
+    # Contouren zoeken
+    contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    canvas = np.ones_like(image) * 255
+    h, w = gray.shape
+    label_map = labels.reshape(h, w)
 
-    # Combine clustered image with edge overlay
-    combined = Image.blend(clustered_img.convert("RGB"), edge_img, alpha=0.5)
-    return combined
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    for cnt in contours:
+        mask = np.zeros(gray.shape, dtype="uint8")
+        cv2.drawContours(mask, [cnt], -1, 255, -1)
+        masked_labels = label_map[mask == 255]
+        if len(masked_labels) == 0:
+            continue
+        most_common_label = np.bincount(masked_labels).argmax()
+        cv2.drawContours(canvas, [cnt], -1, (0, 0, 0), 1)
+
+        # Nummer in vlak plaatsen
+        M = cv2.moments(cnt)
+        if M["m00"] != 0:
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+            cv2.putText(canvas, str(most_common_label + 1), (cx, cy), font, 0.4, (0, 0, 0), 1)
+
+    canvas_img = Image.fromarray(canvas)
+    return canvas_img
