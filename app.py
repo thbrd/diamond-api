@@ -133,10 +133,7 @@ def process():
 def home():
     return "✅ Diamond Painting API is live"
 
-@app.route("/process-numbers", methods=["POST"])
-def process_numbers():
-    if "image" not in request.files:
-        return jsonify({"error": "Geen afbeelding geüpload."}), 400
+, 400
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
