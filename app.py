@@ -144,7 +144,6 @@ def process_numbers():
 
         # Verkleinde preview voor weergave
         preview = result.copy()
-        preview.thumbnail((400, 400))
         preview_io = io.BytesIO()
         preview.save(preview_io, format="PNG")
         preview_io.seek(0)
