@@ -37,7 +37,7 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
     contour_img = clustered_img.copy()
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_scale = 1.2
-    line_thickness = 3
+    line_thickness = 1
 
     for label_val in range(num_colors):
         mask = np.uint8(label_image == label_val)
