@@ -46,4 +46,4 @@ def generate_paint_by_numbers(pil_image, num_colors):
 
     canvas_img = Image.fromarray(canvas)
     painted_img = Image.fromarray(painted)
-    return canvas_img, painted_img
+    return canvas_img
