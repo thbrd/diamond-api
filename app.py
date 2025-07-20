@@ -150,11 +150,6 @@ def home():
     except Exception as e:
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
-
-
 @app.route("/paint-by-numbers", methods=["POST"])
 def paint_by_numbers():
     file = request.files["image"]
@@ -170,3 +165,6 @@ def paint_by_numbers():
     img_io.seek(0)
 
     return send_file(img_io, mimetype="image/png")
+    
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)    
