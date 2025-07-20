@@ -32,6 +32,7 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
     # Create mask for each label
     label_image = labels.reshape((img.shape[0], img.shape[1]))
     contour_img = clustered_img.copy()
+    scale_multiplier = 3
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_scale = 0.4 * scale_multiplier
     line_thickness = int(1 * scale_multiplier)
