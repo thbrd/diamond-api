@@ -1,0 +1,154 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Diamond Painting Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #fff;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #fff;
+            padding: 10px;
+            text-align: center;
+        }
+        header img {
+            height: 80px;
+        }
+        main {
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            text-align: center;
+            color: #f7941d;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            background: #fefefe;
+            border: 1px dashed #f7941d;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #444;
+        }
+        input[type="file"] {
+            margin-top: 10px;
+        }
+        .btn {
+            margin-top: 25px;
+            padding: 12px 30px;
+            background: #f7941d;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #e28112;
+        }
+        #log {
+            margin-top: 15px;
+            color: #666;
+            font-style: italic;
+        }
+        .output-wrapper {
+            border: 1px dashed #f7941d;
+            margin-top: 40px;
+            padding: 20px;
+            border-radius: 12px;
+            background: #fffefc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        img.preview {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            margin-top: 15px;
+            transform: scale(0.6);
+            transform-origin: top center;
+        }
+        .download-link {
+            display: inline-block;
+            margin: 10px 10px 30px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 20px;
+            text-decoration: none;
+        }
+        .download-link:hover {
+            background: #43a047;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="logo.png" alt="Happy HobbyKit Logo">
+    </header>
+    <main>
+        <h1>Diamond Painting Generator</h1>
+        <form id="upload-form">
+            <label>Upload je foto:
+                <input type="file" id="image" name="image" accept="image/*" required>
+            </label>
+            <label>
+                <input type="radio" name="shape" value="square" checked> Vierkante steentjes
+            </label>
+            <label>
+                <input type="radio" name="shape" value="round"> Ronde steentjes
+            </label>
+            <button type="submit" class="btn">Genereer voorbeeld</button>
+        </form>
+
+        <div id="log" style="text-align:center; margin-top: 15px;"></div>
+
+        <div class="output-wrapper">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+  <h2 id="preview-title">Voorbeeld:</h2>
+  <button id="lang-toggle" class="btn" style="margin-bottom: 10px;">EN</button>
+</div>
+            <a id="download-preview" href="#" download="voorbeeld.png" class="download-link" style="display:none">Download Voorbeeld</a>
+            
+<p id="canvas-info" style="font-weight: bold; text-align: center; margin-top: 15px;">
+    Advies formaat Diamond Painting: <span id="advies-formaat">...</span><br>
+    <span id="canvas-afmetingen"></span>
+<p id="warning-msg" style="color: red; font-weight: bold;"></p>
+</p>
+<img id="preview" class="preview" src="" alt="">
+
+            
+        </div>
+    
+<div style="text-align:center; margin-top: 30px;">
+    <a href="index.html" class="btn">⬅️ Terug naar keuze</a>
+</div>
+
+</main>
+    <script src="script.js"></script>
+
+<footer style="margin-top: 40px; padding: 20px; text-align: center; font-size: 14px; background: #f1f1f1;">
+    <a href="login.html" style="text-decoration: none; color: #555;">
+        &copy; 2025 HappyHobbyWorld
+    </a>
+</footer>
+</body>
+
+</html>

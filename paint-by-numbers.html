@@ -1,0 +1,185 @@
+
+<!DOCTYPE html>
+
+<html lang="nl">
+<head>
+<meta charset="utf-8"/>
+<title>Paint by Numbers</title>
+<style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #fff;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #fff;
+            padding: 10px;
+            text-align: center;
+        }
+        header img {
+            height: 80px;
+        }
+        main {
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            text-align: center;
+            color: #f7941d;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fefefe;
+            border: 1px dashed #f7941d;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #444;
+        }
+        input[type="file"] {
+            margin-top: 10px;
+        }
+        .btn {
+            margin-top: 25px;
+            padding: 12px 30px;
+            background: #f7941d;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #e28112;
+        }
+        #log {
+            margin-top: 15px;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+        }
+        .output-wrapper {
+            border: 1px dashed #f7941d;
+            margin-top: 40px;
+            padding: 20px;
+            border-radius: 12px;
+            background: #fffefc;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+        img.preview {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            margin-top: 15px;
+            transform: scale(0.6);
+            transform-origin: top center;
+        }
+        .download-link {
+            display: inline-block;
+            margin: 10px 10px 30px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 20px;
+            text-decoration: none;
+        }
+        .download-link:hover {
+            background: #43a047;
+        }
+    </style>
+</head>
+<body>
+<header>
+<img alt="Happy HobbyKit Logo" src="logo.png"/>
+</header>
+<main>
+<h1>Paint by Numbers Generator</h1>
+<form id="upload-form">
+<label>Upload je afbeelding:
+                <input accept="image/*" id="image" name="image" required="" type="file"/>
+</label>
+<label><input checked="" name="colors" type="radio" value="24"/> 24 kleuren</label>
+<label><input name="colors" type="radio" value="36"/> 36 kleuren</label>
+<label><input name="colors" type="radio" value="48"/> 48 kleuren</label>
+<button class="btn" type="submit">Genereer voorbeeld</button>
+</form>
+<div id="log"> </div>
+<div style="text-align:center; margin-top: 30px;">
+<a class="btn" href="index.html">⬅️ Terug naar keuze</a>
+</div>
+<div id="preview-container" style="display: none; margin-top: 30px; border: 2px dashed #f7941d; padding: 20px; border-radius: 10px; background-color: #fff;">
+<h2 id="preview-title" style="color: #f7941d;">Voorbeeldresultaat</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 30px;">
+<div style="flex: 1; min-width: 280px;">
+<h3>Canvas (met nummers)</h3>
+<img id="canvas-preview" style="max-width: 100%; border: 1px solid #ccc;"/><br/>
+<a download="" href="#" id="download-canvas" rel="noopener" style="display:none; color: #f7941d;">⬇️ Download Canvas</a>
+</div>
+<div style="flex: 1; min-width: 280px;">
+<h3>Voorbeeld ingekleurd</h3>
+<img id="painted-preview" style="max-width: 100%; border: 1px solid #ccc;"/><br/>
+<a download="" href="#" id="download-painted" rel="noopener" style="display:none; color: #f7941d;">⬇️ Download Painted</a>
+</div>
+</div>
+</div></main>
+<script>
+        document.getElementById('upload-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const log = document.getElementById('log');
+            log.textContent = "⏳ Uploaden...";
+
+            const imageInput = document.getElementById('image');
+            const colors = document.querySelector('input[name="colors"]:checked').value;
+            const formData = new FormData();
+            formData.append('image', imageInput.files[0]);
+            formData.append('colors', colors);
+
+            try {
+                const response = await fetch("http://91.98.21.195:5000/process-numbers", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const text = await response.text();
+                try {
+                    const data = JSON.parse(text);
+                    if (data.error) {
+                        log.textContent = "❌ Fout: " + data.error;
+                        return;
+                    }
+                    document.getElementById('canvas-preview').src = data.download_canvas;
+                    document.getElementById('painted-preview').src = data.download_painted;
+                    document.getElementById('download-canvas').href = data.download_canvas;
+                    document.getElementById('download-painted').href = data.download_painted;
+                    document.getElementById('download-canvas').style.display = 'inline-block';
+                    document.getElementById('download-painted').style.display = 'inline-block';
+                    document.getElementById('preview-container').style.display = 'block';
+                    log.textContent = "✅ Voorbeeld gegenereerd.";
+                } catch (parseErr) {
+                    log.textContent = "❌ Ongeldige serverresponse: " + text.slice(0, 50);
+                }
+
+            } catch (err) {
+                log.textContent = "💥 Fout bij verzenden: " + err.message;
+            }
+        });
+    </script>
+<footer style="margin-top: 40px; padding: 20px; text-align: center; font-size: 14px; background: #f1f1f1;">
+<a href="login.html" style="text-decoration: none; color: #555;">
+        © 2025 HappyHobbyWorld
+    </a>
+</footer>
+</body>
+</html>
