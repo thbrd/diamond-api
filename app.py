@@ -152,21 +152,40 @@ def home():
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 
 
+
 @app.route("/paint-by-numbers", methods=["POST"])
 def paint_by_numbers():
-    file = request.files["image"]
-    num_colors = int(request.form.get("colors", 24))
-    uuid_str = str(uuid.uuid4())
-    input_path = f"/tmp/input_{uuid_str}.png"
-    file.save(input_path)
+    try:
+        if "image" not in request.files:
+            return jsonify({"error": "Geen afbeelding geüpload"}), 400
 
-    paint_img = generate_paint_by_numbers(input_path, num_colors=num_colors)
+        file = request.files["image"]
 
-    img_io = BytesIO()
-    paint_img.save(img_io, "PNG")
-    img_io.seek(0)
+        try:
+            num_colors = int(request.form.get("colors", 24))
+        except ValueError:
+            return jsonify({"error": "Aantal kleuren moet een getal zijn"}), 400
 
-    return send_file(img_io, mimetype="image/png")
+        uuid_str = str(uuid.uuid4())
+        input_path = f"/tmp/input_{uuid_str}.png"
+        file.save(input_path)
+
+        paint_img = generate_paint_by_numbers(input_path, num_colors=num_colors)
+
+        if not isinstance(paint_img, Image.Image):
+            return jsonify({"error": "Generatie mislukt: geen geldige afbeelding"}), 500
+
+        img_io = BytesIO()
+        paint_img.save(img_io, "PNG")
+        img_io.seek(0)
+
+        return send_file(img_io, mimetype="image/png")
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
+
     
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
