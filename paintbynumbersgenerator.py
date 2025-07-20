@@ -22,6 +22,7 @@ def generate_paint_by_numbers(pil_image, num_colors):
     # Contouren zoeken
     contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     canvas = np.ones_like(image) * 255
+    painted = clustered_image.copy()
     h, w = gray.shape
     label_map = labels.reshape(h, w)
 
@@ -44,4 +45,5 @@ def generate_paint_by_numbers(pil_image, num_colors):
             cv2.putText(canvas, str(most_common_label + 1), (cx, cy), font, 0.4, (0, 0, 0), 1)
 
     canvas_img = Image.fromarray(canvas)
-    return canvas_img
+    painted_img = Image.fromarray(painted)
+    return canvas_img, painted_img
