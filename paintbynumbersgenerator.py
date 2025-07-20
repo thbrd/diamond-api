@@ -41,4 +41,4 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
 
     return canvas
 
-print(f'✅ Final saved to: {output_path}')
+
