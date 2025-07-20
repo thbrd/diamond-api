@@ -160,17 +160,24 @@ def paint_by_numbers():
             return jsonify({"error": "Geen afbeelding geüpload"}), 400
 
         file = request.files["image"]
+        if file.filename == "":
+            return jsonify({"error": "Geen bestand gekozen"}), 400
 
+        # Validatie van aantal kleuren
+        allowed_colors = [24, 36, 48]
         try:
-            num_colors = int(request.form.get("colors", 24))
+            requested = int(request.form.get("colors", 24))
         except ValueError:
-            return jsonify({"error": "Aantal kleuren moet een getal zijn"}), 400
+            requested = 24
+        num_colors = requested if requested in allowed_colors else 24
 
         uuid_str = str(uuid.uuid4())
         input_path = f"/tmp/input_{uuid_str}.png"
         file.save(input_path)
 
         paint_img = generate_paint_by_numbers(input_path, num_colors=num_colors)
+
+        print("DEBUG >>> paint_img type:", type(paint_img))
 
         if not isinstance(paint_img, Image.Image):
             return jsonify({"error": "Generatie mislukt: geen geldige afbeelding"}), 500
