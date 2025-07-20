@@ -56,4 +56,8 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
                 cv2.putText(contour_img, str(label_val + 1), (cX - 5, cY + 5), font, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
 
     contour_img = cv2.cvtColor(contour_img, cv2.COLOR_BGR2RGB)
-    return Image.fromarray(contour_img)
+    # === Vergelijkbaar met svgSizeMultiplier: verhoog resolutie van eindresultaat ===
+    scale_multiplier = 3
+    upscaled = contour_img.repeat(scale_multiplier, axis=0).repeat(scale_multiplier, axis=1)
+    upscaled = cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(upscaled)
