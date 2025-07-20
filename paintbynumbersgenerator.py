@@ -24,21 +24,29 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
     centers = np.uint8(centers)
     res = centers[labels.flatten()]
     clustered_img = res.reshape((img.shape))
-    clustered_img = cv2.cvtColor(clustered_img, cv2.COLOR_BGR2RGB)
 
-    # Create labeled version
-    label_img = labels.reshape((img.shape[0], img.shape[1]))
-    canvas = Image.fromarray(clustered_img)
-    draw = ImageDraw.Draw(canvas)
-    font = ImageFont.load_default()
+    # Create mask for each label
+    label_image = labels.reshape((img.shape[0], img.shape[1]))
+    contour_img = clustered_img.copy()
+    font = cv2.FONT_HERSHEY_SIMPLEX
 
-    # Overlay numbers
-    step = max(1, min(img.shape[:2]) // 40)
-    for y in range(0, img.shape[0], step):
-        for x in range(0, img.shape[1], step):
-            label = label_img[y, x]
-            draw.text((x, y), str(label + 1), font=font, fill=(0, 0, 0))
+    for label_val in range(num_colors):
+        mask = np.uint8(label_image == label_val)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    return canvas
+        for cnt in contours:
+            if cv2.contourArea(cnt) < 50:
+                continue
 
+            # Draw contour
+            cv2.drawContours(contour_img, [cnt], -1, (0, 0, 0), 1)
 
+            # Get center of contour and label
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                cv2.putText(contour_img, str(label_val + 1), (cX - 5, cY + 5), font, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
+
+    contour_img = cv2.cvtColor(contour_img, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(contour_img)
