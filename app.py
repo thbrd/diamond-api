@@ -1,6 +1,4 @@
 from paintbynumbersgenerator import generate_paint_by_numbers
-import uuid
-from io import BytesIO
 from flask import send_file, Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image, ImageDraw
@@ -134,6 +132,10 @@ def process():
 def home():
     return "✅ Diamond Painting API is live"
 
+@app.route("/process-numbers", methods=["POST"])
+def process_numbers():
+    if "image" not in request.files:
+        return jsonify({"error": "Geen afbeelding geüpload."}), 400
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
@@ -152,47 +154,5 @@ def home():
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 
 
-
-@app.route("/paint-by-numbers", methods=["POST"])
-def paint_by_numbers():
-    try:
-        if "image" not in request.files:
-            return jsonify({"error": "Geen afbeelding geüpload"}), 400
-
-        file = request.files["image"]
-        if file.filename == "":
-            return jsonify({"error": "Geen bestand gekozen"}), 400
-
-        # Validatie van aantal kleuren
-        allowed_colors = [24, 36, 48]
-        try:
-            requested = int(request.form.get("colors", 24))
-        except ValueError:
-            requested = 24
-        num_colors = requested if requested in allowed_colors else 24
-
-        uuid_str = str(uuid.uuid4())
-        input_path = f"/tmp/input_{uuid_str}.png"
-        file.save(input_path)
-
-        paint_img = generate_paint_by_numbers(input_path, num_colors=num_colors)
-
-        print("DEBUG >>> paint_img type:", type(paint_img))
-
-        if not isinstance(paint_img, Image.Image):
-            return jsonify({"error": "Generatie mislukt: geen geldige afbeelding"}), 500
-
-        img_io = BytesIO()
-        paint_img.save(img_io, "PNG")
-        img_io.seek(0)
-
-        return send_file(img_io, mimetype="image/png")
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
-
-    
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
