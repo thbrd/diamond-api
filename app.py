@@ -163,7 +163,6 @@ def paint_by_numbers():
         if file.filename == "":
             return jsonify({"error": "Geen bestand gekozen"}), 400
 
-        # Validatie van aantal kleuren
         allowed_colors = [24, 36, 48]
         try:
             requested = int(request.form.get("colors", 24))
@@ -178,15 +177,22 @@ def paint_by_numbers():
         paint_img = generate_paint_by_numbers(input_path, num_colors=num_colors)
 
         print("DEBUG >>> paint_img type:", type(paint_img))
+        print("DEBUG >>> paint_img mode:", paint_img.mode)
 
         if not isinstance(paint_img, Image.Image):
             return jsonify({"error": "Generatie mislukt: geen geldige afbeelding"}), 500
+
+        if paint_img.mode != "RGB":
+            paint_img = paint_img.convert("RGB")
 
         img_io = BytesIO()
         paint_img.save(img_io, "PNG")
         img_io.seek(0)
 
-        return send_file(img_io, mimetype="image/png")
+        print("DEBUG >>> image size:", paint_img.size)
+        print("DEBUG >>> image bytes length:", len(img_io.getvalue()))
+
+        return send_file(img_io, mimetype="image/png", as_attachment=False)
 
     except Exception as e:
         import traceback
