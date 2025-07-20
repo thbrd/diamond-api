@@ -7,6 +7,7 @@ import numpy as np
 import io
 import json
 import os
+from io import BytesIO
 import base64
 
 app = Flask(__name__)
