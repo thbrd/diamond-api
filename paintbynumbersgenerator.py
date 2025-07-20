@@ -18,7 +18,6 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
         scale = max_size / max(h, w)
         new_w = int(w * scale)
         new_h = int(h * scale)
-        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
 
 
     Z = img.reshape((-1, 3))
@@ -36,7 +35,6 @@ def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image
     label_image = labels.reshape((img.shape[0], img.shape[1]))
     contour_img = clustered_img.copy()
     font = cv2.FONT_HERSHEY_SIMPLEX
-    scale_multiplier = 3
     font_scale = 0.4 * scale_multiplier
     line_thickness = int(1 * scale_multiplier)
 for label_val in range(num_colors):
@@ -59,6 +57,6 @@ for label_val in range(num_colors):
 
             contour_img = cv2.cvtColor(contour_img, cv2.COLOR_BGR2RGB)
             # === Vergelijkbaar met svgSizeMultiplier: verhoog resolutie van eindresultaat ===
-            scale_multiplier = 3
-            upscaled = contour_img.repeat(scale_multiplier, axis=0).repeat(scale_multiplier, axis=1)
-            return Image.fromarray(upscaled)
+        scale_multiplier = 3
+        upscaled = cv2.resize(contour_img, (contour_img.shape[1]*scale_multiplier, contour_img.shape[0]*scale_multiplier), interpolation=cv2.INTER_NEAREST)
+        return Image.fromarray(upscaled)
