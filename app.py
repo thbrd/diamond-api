@@ -31,6 +31,9 @@ def process_numbers():
         canvas_path = os.path.join(STATIC_DIR, canvas_filename)
         canvas_img.save(canvas_path)
 
+        if not os.path.exists(canvas_path):
+            return jsonify({"error": "Preview kon niet worden opgeslagen."}), 500
+
         base_url = "http://91.98.21.195:5000"
         return jsonify({
             "preview": f"{base_url}/static/{canvas_filename}"
