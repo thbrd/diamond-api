@@ -1,4 +1,5 @@
 from paintbynumbersgenerator import generate_paint_by_numbers
+import uuid
 from flask import send_file, Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image, ImageDraw
@@ -156,3 +157,20 @@ def process_numbers():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
+
+@app.route("/paint-by-numbers", methods=["POST"])
+def paint_by_numbers():
+    file = request.files["image"]
+    num_colors = int(request.form.get("colors", 24))
+    uuid_str = str(uuid.uuid4())
+    input_path = f"/tmp/input_{uuid_str}.png"
+    file.save(input_path)
+
+    paint_img = generate_paint_by_numbers(input_path, num_colors=num_colors)
+
+    img_io = BytesIO()
+    paint_img.save(img_io, "PNG")
+    img_io.seek(0)
+
+    return send_file(img_io, mimetype="image/png")
