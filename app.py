@@ -79,3 +79,32 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
+
+
+@app.route("/process-diamond", methods=["POST"])
+def process_diamond():
+    if "image" not in request.files:
+        return jsonify({"error": "No image provided"}), 400
+    try:
+        file = request.files["image"]
+        image = Image.open(file.stream).convert("RGB")
+        shape = request.form.get("shape", "square")
+        if shape not in ["round", "square"]:
+            shape = "square"
+
+        log_request("diamondpainting")
+        canvas_img, _ = generate_diamond_painting(image, shape=shape)
+
+        unique_id = str(uuid.uuid4())
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = f"preview_{timestamp}_{unique_id}.png"
+        path = os.path.join(STATIC_DIR, filename)
+        canvas_img.save(path)
+
+        base_url = "http://91.98.21.195:5000"
+        return jsonify({
+            "preview": f"{base_url}/static/{filename}"
+        })
+    except Exception as e:
+        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
