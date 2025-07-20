@@ -55,8 +55,8 @@ for label_val in range(num_colors):
                 cY = int(M["m01"] / M["m00"])
                 cv2.putText(contour_img, str(label_val + 1), (cX - 5 * scale_multiplier, cY + 5 * scale_multiplier), font, font_scale, (0, 0, 0), line_thickness, cv2.LINE_AA)
 
-            contour_img = cv2.cvtColor(contour_img, cv2.COLOR_BGR2RGB)
-            # === Vergelijkbaar met svgSizeMultiplier: verhoog resolutie van eindresultaat ===
-            scale_multiplier = 3
-            upscaled = cv2.resize(contour_img, (contour_img.shape[1]*scale_multiplier, contour_img.shape[0]*scale_multiplier), interpolation=cv2.INTER_NEAREST)
-            return Image.fromarray(upscaled)
+        contour_img = cv2.cvtColor(contour_img, cv2.COLOR_BGR2RGB)
+        # === Vergelijkbaar met svgSizeMultiplier: verhoog resolutie van eindresultaat ===
+        scale_multiplier = 3
+        upscaled = cv2.resize(contour_img, (contour_img.shape[1]*scale_multiplier, contour_img.shape[0]*scale_multiplier), interpolation=cv2.INTER_NEAREST)
+        return Image.fromarray(upscaled)
