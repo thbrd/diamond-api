@@ -1,44 +1,37 @@
-
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import cv2
-from PIL import Image, ImageDraw, ImageFont
+from sklearn.cluster import KMeans
 
-def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image.Image:
-    image = image.convert("RGB")
-    img = np.array(image)
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+def generate_paint_by_numbers(input_path, output_path, num_colors=24):
+    img = Image.open(input_path).convert("RGB")
+    img = img.resize((800, 800))  # consistent grotere preview
 
-    # Rescale image for clustering
-    max_size = 800
-    if max(img.shape[:2]) > max_size:
-        scale = max_size / max(img.shape[:2])
-        img = cv2.resize(img, (int(img.shape[1] * scale), int(img.shape[0] * scale)), interpolation=cv2.INTER_AREA)
+    img_np = np.array(img)
+    h, w, _ = img_np.shape
+    img_flat = img_np.reshape((-1, 3))
 
-    Z = img.reshape((-1, 3))
-    Z = np.float32(Z)
+    kmeans = KMeans(n_clusters=num_colors, n_init="auto")
+    labels = kmeans.fit_predict(img_flat)
+    palette = np.uint8(kmeans.cluster_centers_)
+    quantized = palette[labels].reshape((h, w, 3))
 
-    # KMeans clustering
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    _, labels, centers = cv2.kmeans(Z, num_colors, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+    contour_img = quantized.copy()
+    gray = cv2.cvtColor(quantized, cv2.COLOR_RGB2GRAY)
+    edges = cv2.Canny(gray, 100, 200)
+    contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(contour_img, contours, -1, (0, 0, 0), 1)
 
-    centers = np.uint8(centers)
-    res = centers[labels.flatten()]
-    clustered_img = res.reshape((img.shape))
-    clustered_img = cv2.cvtColor(clustered_img, cv2.COLOR_BGR2RGB)
-
-    # Create labeled version
-    label_img = labels.reshape((img.shape[0], img.shape[1]))
-    canvas = Image.fromarray(clustered_img)
-    draw = ImageDraw.Draw(canvas)
+    numbered_img = Image.fromarray(contour_img)
+    draw = ImageDraw.Draw(numbered_img)
     font = ImageFont.load_default()
 
-    # Overlay numbers
-    step = max(1, min(img.shape[:2]) // 40)
-    for y in range(0, img.shape[0], step):
-        for x in range(0, img.shape[1], step):
-            label = label_img[y, x]
-            draw.text((x, y), str(label + 1), font=font, fill=(0, 0, 0))
+    label_image = labels.reshape((h, w))
+    for i in range(0, h, 30):
+        for j in range(0, w, 30):
+            region = label_image[i:i+30, j:j+30]
+            if region.size == 0: continue
+            label = int(np.median(region))
+            draw.text((j+10, i+10), str(label+1), fill="black", font=font)
 
-    return canvas
-
-
+    numbered_img.save(output_path)
