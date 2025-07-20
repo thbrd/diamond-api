@@ -5,7 +5,7 @@ from sklearn.cluster import KMeans
 
 def generate_paint_by_numbers(input_path, output_path, num_colors=24):
     img = Image.open(input_path).convert("RGB")
-    img = img.resize((800, 800))  # consistent grotere preview
+    img = img.resize((1200, 1200))  # GROTERE PREVIEW
 
     img_np = np.array(img)
     h, w, _ = img_np.shape
@@ -34,4 +34,4 @@ def generate_paint_by_numbers(input_path, output_path, num_colors=24):
             label = int(np.median(region))
             draw.text((j+10, i+10), str(label+1), fill="black", font=font)
 
-    numbered_img.save(output_path)
+    return numbered_img
