@@ -147,9 +147,8 @@ def process_numbers():
         preview.thumbnail((400, 400))
         preview_io = io.BytesIO()
         preview.save(preview_io, format="PNG")
-        preview_b64 = base64.b64encode(preview_io.getvalue()).decode("utf-8")
-
-        return jsonify({ "preview": f"data:image/png;base64,{preview_b64}" })
+        preview_io.seek(0)
+        return send_file(preview_io, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 if __name__ == "__main__":
