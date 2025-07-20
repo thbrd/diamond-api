@@ -1,8 +1,6 @@
-
 import numpy as np
 import cv2
 from PIL import Image, ImageDraw, ImageFont
-
 def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image.Image:
     image = image.convert("RGB")
     img = np.array(image)
