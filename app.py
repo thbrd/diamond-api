@@ -68,26 +68,49 @@ def process():
         image = Image.open(file.stream).convert("RGB")
         shape = request.form.get("shape", "square")
 
+        # Afmeting controleren
         MIN_WIDTH = 800
         MIN_HEIGHT = 800
         if image.width < MIN_WIDTH or image.height < MIN_HEIGHT:
-            return jsonify({"error": "Afbeelding is te klein."}), 400
+            return jsonify({"error": "De foto is te klein voor een scherp eindresultaat. Upload een grotere afbeelding."}), 400
+
+        # Bekende diamond painting formaten
+        standaard_formaten = [
+            (20, 30), (30, 40), (40, 50), (50, 60),
+            (60, 80), (80, 100), (90, 120), (100, 150)
+        ]
+
+        # Bepaal beeldverhouding
+        aspect_ratio = image.width / image.height
+
+        # Zoek formaat met dichtstbijzijnde verhouding
+        def formaat_score(f):
+            w, h = f
+            return abs((w / h) - aspect_ratio)
+
+        advies_w, advies_h = min(standaard_formaten, key=formaat_score)
+        adviesformaat = f"{advies_w}x{advies_h} cm"
+        show_warning = (advies_w, advies_h) == (20, 30) or (advies_w, advies_h) == (30, 20)
 
         (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
         result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
+        codes = [int(c) for c in codes]
+        with open("used_codes.json", "w") as f:
+            json.dump(codes, f)
         result_io = io.BytesIO()
         result.save(result_io, format="PNG")
         result_io.seek(0)
-
         response = send_file(result_io, mimetype="image/png")
         response.headers["X-Canvas-Format"] = f"{canvas_w}x{canvas_h} cm"
         response.headers["X-Stones"] = f"{w} x {h}"
-        response.headers["X-Adviesformaat"] = f"{canvas_w}x{canvas_h} cm"
-        response.headers["X-Warning"] = "0"
+        response.headers["X-Adviesformaat"] = adviesformaat
+        response.headers["X-Warning"] = "1" if show_warning else "0"
         return response
 
     except Exception as e:
-        return jsonify({"error": f"Fout: {str(e)}"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Processing error: {str(e)}"}), 500
 
 @app.route("/static/<path:filename>")
 def serve_static(filename):
