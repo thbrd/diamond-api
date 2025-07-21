@@ -1,64 +1,51 @@
 
-import numpy as np
-import cv2
 from PIL import Image, ImageDraw, ImageFont
+import numpy as np
+import json
+import io
+import base64
+import os
 
-def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image.Image:
-    image = image.convert("RGB")
-    img = np.array(image)
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+with open("paint_colors.json") as f:
+    PALETTE = json.load(f)
 
-    # Rescale image for clustering
-    max_size = 1024  # Langste zijde max, behoud aspect ratio
-    if max(img.shape[:2]) > max_size:
-        scale = max_size / max(img.shape[:2])
-        
-    h, w = img.shape[:2]
-    if max(h, w) > max_size:
-        scale = max_size / max(h, w)
-        new_w = int(w * scale)
-        new_h = int(h * scale)
-        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+def generate_paint_by_numbers_svg_png(image, num_colors):
+    colors = PALETTE[str(num_colors)]
+    palette = np.array(colors)
 
+    # Resize image to max 80x80 (zoals originele repo)
+    w, h = image.size
+    ratio = 80 / max(w, h)
+    image = image.resize((int(w * ratio), int(h * ratio)))
+    np_img = np.array(image)
 
-    Z = img.reshape((-1, 3))
-    Z = np.float32(Z)
+    # Map naar dichtstbijzijnde kleur
+    reshaped = np_img.reshape(-1, 3)
+    distances = np.linalg.norm(palette[None, :, :] - reshaped[:, None, :], axis=2)
+    labels = np.argmin(distances, axis=1).reshape(np_img.shape[:2])
 
-    # KMeans clustering
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    _, labels, centers = cv2.kmeans(Z, num_colors, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+    h, w = labels.shape
+    cell_size = 20
+    svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{w*cell_size}" height="{h*cell_size}">']
 
-    centers = np.uint8(centers)
-    res = centers[labels.flatten()]
-    clustered_img = res.reshape((img.shape))
+    for y in range(h):
+        for x in range(w):
+            color = palette[labels[y, x]]
+            svg.append(f'<rect x="{x*cell_size}" y="{y*cell_size}" width="{cell_size}" height="{cell_size}" fill="rgb{tuple(color)}" stroke="#000" stroke-width="0.5"/>')
+            svg.append(f'<text x="{x*cell_size+cell_size/2}" y="{y*cell_size+cell_size/2}" text-anchor="middle" dominant-baseline="central" font-size="8" fill="#000">{labels[y, x]+1}</text>')
 
-    # Create mask for each label
-    label_image = labels.reshape((img.shape[0], img.shape[1]))
-    contour_img = clustered_img.copy()
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 1.2
-    line_thickness = 1
+    svg.append("</svg>")
+    svg_str = "".join(svg)
 
-    for label_val in range(num_colors):
-        mask = np.uint8(label_image == label_val)
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # PNG render voor download
+    img = Image.new("RGB", (w * cell_size, h * cell_size), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.load_default()
+    for y in range(h):
+        for x in range(w):
+            color = tuple(palette[labels[y, x]])
+            rect = [x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size]
+            draw.rectangle(rect, fill=color, outline=(0, 0, 0))
+            draw.text((rect[0]+cell_size//3, rect[1]+cell_size//3), str(labels[y, x]+1), fill=(0, 0, 0), font=font)
 
-        for cnt in contours:
-            if cv2.contourArea(cnt) < 50:
-                continue
-
-            # Draw contour
-            cv2.drawContours(contour_img, [cnt], -1, (0, 0, 0), line_thickness)
-
-            # Get center of contour and label
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                cv2.putText(contour_img, str(label_val + 1), (cX - 5, cY + 5), font, font_scale, (0, 0, 0), line_thickness, cv2.LINE_AA)
-
-    contour_img = cv2.cvtColor(contour_img, cv2.COLOR_BGR2RGB)
-    # === Vergelijkbaar met svgSizeMultiplier: verhoog resolutie van eindresultaat ===
-    scale_multiplier = 3
-    upscaled = contour_img.repeat(scale_multiplier, axis=0).repeat(scale_multiplier, axis=1)
-    return Image.fromarray(upscaled)
+    return svg_str, img
