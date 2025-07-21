@@ -142,31 +142,33 @@ def process_numbers():
     if "image" not in request.files or "colors" not in request.form:
         return jsonify({"error": "Afbeelding of kleurkeuze ontbreekt"}), 400
 
+    # Tijdelijke opslaglocatie
     temp_dir = tempfile.mkdtemp()
     input_path = os.path.join(temp_dir, "input.png")
     output_basename = str(uuid.uuid4())
 
+    # Opslaan van geüploade afbeelding
     file = request.files["image"]
     file.save(input_path)
 
     try:
+        # CLI aanroep - paintbynumbersgenerator
         output_dir = os.path.join("/tmp", f"pbn_output_{output_basename}")
         os.makedirs(output_dir, exist_ok=True)
 
         cmd = [
-            "/usr/bin/npx", "ts-node",
-            "/opt/paintbynumbersgenerator/src-cli/main.ts",
-            "--input", input_path,
-            "--output", output_dir,
-            "--colors", str(request.form["colors"]),
-            "--dither", "True",
-            "--svg", "True"
-        ]
+        "node",
+        "/opt/paintbynumbersgenerator/dist/cli.js",
+        "--input", input_path,
+        "--output", output_dir,
+        "--colors", str(request.form["colors"]),
+        "--dither", "True",
+        "--svg", "True"
+    ]
 
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        print("STDOUT:", result.stdout.decode())
-        print("STDERR:", result.stderr.decode())
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print("STDOUT:", result.stdout.decode())
+    print("STDERR:", result.stderr.decode())
 
         if result.returncode != 0:
             return jsonify({
@@ -181,8 +183,6 @@ def process_numbers():
         return send_file(svg_path, mimetype="image/svg+xml")
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 
 if __name__ == "__main__":
