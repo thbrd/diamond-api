@@ -133,50 +133,6 @@ def home():
     return "✅ Diamond Painting API is live"
 
 @app.route("/process-numbers", methods=["POST"])
-@app.post("/process-numbers")
-async def process_numbers(file: UploadFile = File(...), colors: int = Form(...)):
-    import tempfile
-    import subprocess
-    import shutil
-    import uuid
-
-    # Tijdelijke opslaglocatie
-    temp_dir = tempfile.mkdtemp()
-    input_path = os.path.join(temp_dir, "input.png")
-    output_basename = str(uuid.uuid4())
-
-    # Opslaan van geüploade afbeelding
-    with open(input_path, "wb") as image_file:
-        shutil.copyfileobj(file.file, image_file)
-
-    # CLI aanroep - paintbynumbersgenerator
-    output_dir = "/tmp/pbn_output_" + output_basename
-    os.makedirs(output_dir, exist_ok=True)
-
-    cmd = [
-        "python3",
-        "/opt/paintbynumbersgenerator/main.py",
-        "--input", input_path,
-        "--output", output_dir,
-        "--colors", str(colors),
-        "--dither", "True",
-        "--svg", "True"
-    ]
-
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    if result.returncode != 0:
-        return {"error": "Generatie mislukt", "details": result.stderr.decode()}
-
-    # SVG en PNG zoeken
-    svg_path = os.path.join(output_dir, "output.svg")
-    png_path = os.path.join(output_dir, "output.png")
-
-    if not os.path.exists(svg_path) or not os.path.exists(png_path):
-        return {"error": "Bestanden niet gevonden na generatie"}
-
-    # Resultaat retourneren aan frontend
-    return FileResponse(svg_path, media_type="image/svg+xml")
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
@@ -191,5 +147,56 @@ async def process_numbers(file: UploadFile = File(...), colors: int = Form(...))
         return send_file(preview_io, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
+@app.route("/process-numbers", methods=["POST"])
+def process_numbers():
+    import tempfile
+    import subprocess
+    import shutil
+    import uuid
+
+    if "image" not in request.files or "colors" not in request.form:
+        return jsonify({"error": "Afbeelding of kleurkeuze ontbreekt"}), 400
+
+    # Tijdelijke opslaglocatie
+    temp_dir = tempfile.mkdtemp()
+    input_path = os.path.join(temp_dir, "input.png")
+    output_basename = str(uuid.uuid4())
+
+    # Opslaan van geüploade afbeelding
+    file = request.files["image"]
+    file.save(input_path)
+
+    try:
+        # CLI aanroep - paintbynumbersgenerator
+        output_dir = os.path.join("/tmp", f"pbn_output_{output_basename}")
+        os.makedirs(output_dir, exist_ok=True)
+
+        cmd = [
+            "python3",
+            "/opt/paintbynumbersgenerator/main.py",
+            "--input", input_path,
+            "--output", output_dir,
+            "--colors", str(request.form["colors"]),
+            "--dither", "True",
+            "--svg", "True"
+        ]
+
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if result.returncode != 0:
+            return jsonify({
+                "error": "Generatie mislukt",
+                "details": result.stderr.decode()
+            }), 500
+
+        svg_path = os.path.join(output_dir, "output.svg")
+        if not os.path.exists(svg_path):
+            return jsonify({"error": "SVG bestand niet gevonden"}), 500
+
+        return send_file(svg_path, mimetype="image/svg+xml")
+
+    except Exception as e:
+        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
