@@ -14,38 +14,48 @@ def generate_paint_by_numbers(image, num_colors, static_folder="static"):
     small_img.thumbnail((400, 400), Image.Resampling.BICUBIC)
     small_w, small_h = small_img.size
 
-    np_img = np.array(small_img)
-    pixels = np_img.reshape(-1, 3)
-
+    np_small = np.array(small_img)
+    pixels = np_small.reshape(-1, 3)
     kmeans = KMeans(n_clusters=num_colors, random_state=42).fit(pixels)
-    labels_small = kmeans.labels_.reshape(small_h, small_w)
     centers = np.clip(np.round(kmeans.cluster_centers_), 0, 255).astype(np.uint8)
+    labels_small = kmeans.labels_.reshape(small_h, small_w)
 
-    # Upscale labels to original size
     labels_up = cv2.resize(labels_small.astype(np.uint8), (original_w, original_h), interpolation=cv2.INTER_NEAREST)
 
-    # PNG-output: kleurvlakken, nummers, contouren
-    png_img = Image.new("RGB", (original_w, original_h))
+    # Small facet pruning: filter tiny masks
+    def filter_small(mask, min_area=200):
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        filtered = np.zeros_like(mask)
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area >= min_area:
+                cv2.drawContours(filtered, [cnt], -1, 255, -1)
+        return filtered
+
+    # PNG
+    png_img = Image.new("RGB", (original_w, original_h), "white")
     draw = ImageDraw.Draw(png_img)
     font = ImageFont.load_default()
 
     for i in range(num_colors):
         mask = (labels_up == i).astype(np.uint8) * 255
-        rgb = tuple(centers[i])
+        mask = filter_small(mask)
+        color = tuple(centers[i])
+
         for y in range(original_h):
             for x in range(original_w):
-                if labels_up[y][x] == i:
-                    png_img.putpixel((x, y), rgb)
+                if mask[y][x] == 255:
+                    png_img.putpixel((x, y), color)
 
-        # Contouren
+        # contour
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             approx = cv2.approxPolyDP(cnt, epsilon=2, closed=True)
-            points = [(int(p[0][0]), int(p[0][1])) for p in approx]
-            if len(points) > 2:
+            if len(approx) > 2:
+                points = [(int(p[0][0]), int(p[0][1])) for p in approx]
                 draw.line(points + [points[0]], fill="black", width=1)
 
-        # Centroid
+        # centroid
         m = cv2.moments(mask)
         if m["m00"] != 0:
             cx = int(m["m10"] / m["m00"])
@@ -55,21 +65,21 @@ def generate_paint_by_numbers(image, num_colors, static_folder="static"):
     png_path = os.path.join(static_folder, f"{uid}.png")
     png_img.save(png_path)
 
-    # SVG-output met vereenvoudigde contouren
+    # SVG
     svg = f"<svg xmlns='http://www.w3.org/2000/svg' width='{original_w}' height='{original_h}' viewBox='0 0 {original_w} {original_h}'>"
     svg += "<style>text{font-size:10px;fill:black;} path{stroke:black;stroke-width:0.3;}</style>"
 
     for i in range(num_colors):
         mask = (labels_up == i).astype(np.uint8) * 255
+        mask = filter_small(mask)
         hex_color = '#%02x%02x%02x' % tuple(centers[i])
 
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             approx = cv2.approxPolyDP(cnt, epsilon=2, closed=True)
-            if len(approx) < 3:
-                continue
-            path_d = "M " + " ".join(f"{int(p[0][0])},{int(p[0][1])}" for p in approx)
-            svg += f"<path d='{path_d}' fill='{hex_color}'/>"
+            if len(approx) > 2:
+                d = "M " + " ".join(f"{int(p[0][0])},{int(p[0][1])}" for p in approx)
+                svg += f"<path d='{d}' fill='{hex_color}'/>"
 
         m = cv2.moments(mask)
         if m["m00"] != 0:
