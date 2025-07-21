@@ -157,14 +157,14 @@ def process_numbers():
         os.makedirs(output_dir, exist_ok=True)
 
         cmd = [
-            "python3",
-            "/opt/paintbynumbersgenerator/main.py",
-            "--input", input_path,
-            "--output", output_dir,
-            "--colors", str(request.form["colors"]),
-            "--dither", "True",
-            "--svg", "True"
-        ]
+        "npx", "ts-node",
+        "/opt/paintbynumbersgenerator/src-cli/main.ts",
+        "--input", input_path,
+        "--output", output_dir,
+        "--colors", str(request.form["colors"]),
+        "--dither", "True",
+        "--svg", "True"
+    ]
 
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
