@@ -22,30 +22,43 @@ def generate_paint_by_numbers(image, num_colors, static_folder="static"):
     labels = kmeans.labels_.reshape(height, width)
     centers = np.round(kmeans.cluster_centers_).astype(np.uint8)
 
-    # PNG-output met kleurvlakken + nummers
-    color_img = np.zeros((height, width, 3), dtype=np.uint8)
-    for i in range(num_colors):
-        color_img[labels == i] = centers[i]
+    # PNG: kleurvlakken + nummers + contouren
+    png_img = Image.new("RGB", (width, height))
+    draw = ImageDraw.Draw(png_img)
 
-    png_pil = Image.fromarray(color_img).resize(original_size, Image.NEAREST)
-    draw = ImageDraw.Draw(png_pil)
     try:
         font = ImageFont.load_default()
     except Exception:
         font = None
 
-    for y in range(0, height, 10):
-        for x in range(0, width, 10):
-            label = str(labels[y][x] + 1)
-            sx = int(x * original_size[0] / width)
-            sy = int(y * original_size[1] / height)
+    for i in range(num_colors):
+        mask = (labels == i).astype(np.uint8) * 255
+        color = tuple(centers[i])
+        for y in range(height):
+            for x in range(width):
+                if labels[y][x] == i:
+                    png_img.putpixel((x, y), color)
+
+        # Tekst op centroid
+        moments = cv2.moments(mask)
+        if moments["m00"] != 0:
+            cx = int(moments["m10"] / moments["m00"])
+            cy = int(moments["m01"] / moments["m00"])
             if font:
-                draw.text((sx, sy), label, fill="black", font=font)
+                draw.text((cx, cy), str(i + 1), fill="black", font=font)
 
+        # Contouren tekenen
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
+            points = [(int(p[0][0]), int(p[0][1])) for p in cnt]
+            if len(points) > 2:
+                draw.line(points + [points[0]], fill="black", width=1)
+
+    png_up = png_img.resize(original_size, Image.NEAREST)
     png_path = os.path.join(static_folder, f"{uid}.png")
-    png_pil.save(png_path, format="PNG")
+    png_up.save(png_path)
 
-    # SVG-output met gekleurde paden
+    # SVG: kleurvlak + path + tekst op centroid
     svg = f"<svg xmlns='http://www.w3.org/2000/svg' width='{original_size[0]}' height='{original_size[1]}' viewBox='0 0 {original_size[0]} {original_size[1]}'>"
     svg += "<style>text{font-size:10px;fill:black;} path{stroke:black;stroke-width:0.5;}</style>"
 
@@ -54,18 +67,21 @@ def generate_paint_by_numbers(image, num_colors, static_folder="static"):
 
     for i in range(num_colors):
         mask = (labels == i).astype(np.uint8) * 255
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         hex_color = '#%02x%02x%02x' % tuple(centers[i])
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
+            if len(cnt) < 3:
+                continue
             path_d = "M " + " ".join(f"{int(p[0][0]*scale_x)},{int(p[0][1]*scale_y)}" for p in cnt)
             svg += f"<path d='{path_d}' fill='{hex_color}'/>"
 
-    for y in range(0, height, 10):
-        for x in range(0, width, 10):
-            label = str(labels[y][x] + 1)
-            sx = int(x * scale_x)
-            sy = int(y * scale_y)
-            svg += f"<text x='{sx}' y='{sy}'>{label}</text>"
+        # Tekst op centroid
+        moments = cv2.moments(mask)
+        if moments["m00"] != 0:
+            cx = int((moments["m10"] / moments["m00"]) * scale_x)
+            cy = int((moments["m01"] / moments["m00"]) * scale_y)
+            svg += f"<text x='{cx}' y='{cy}'>{i + 1}</text>"
 
     svg += "</svg>"
     svg_path = os.path.join(static_folder, f"{uid}.svg")
