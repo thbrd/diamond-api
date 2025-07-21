@@ -146,9 +146,15 @@ def process_numbers():
             "svg": f"/static/{uid}.svg",
             "png": f"/static/{uid}.png"
         })
+    
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
+    
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

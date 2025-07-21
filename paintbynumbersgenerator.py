@@ -9,83 +9,63 @@ def generate_paint_by_numbers(image, num_colors, static_folder="static"):
     uid = str(uuid.uuid4())
     os.makedirs(static_folder, exist_ok=True)
 
-    original_w, original_h = image.size
-    small_img = image.copy()
-    small_img.thumbnail((400, 400), Image.Resampling.BICUBIC)
-    small_w, small_h = small_img.size
+    original_size = image.size
+    img = image.copy()
+    MAX_ANALYZE_SIZE = 400
+    img.thumbnail((MAX_ANALYZE_SIZE, MAX_ANALYZE_SIZE), Image.Resampling.BICUBIC)
+    width, height = img.size
 
-    np_small = np.array(small_img)
-    pixels = np_small.reshape(-1, 3)
-    kmeans = KMeans(n_clusters=num_colors, random_state=42).fit(pixels)
-    centers = np.clip(np.round(kmeans.cluster_centers_), 0, 255).astype(np.uint8)
-    labels_small = kmeans.labels_.reshape(small_h, small_w)
+    np_img = np.array(img)
+    flat_img = np_img.reshape(-1, 3)
 
-    labels_up = cv2.resize(labels_small.astype(np.uint8), (original_w, original_h), interpolation=cv2.INTER_NEAREST)
+    kmeans = KMeans(n_clusters=num_colors, random_state=42).fit(flat_img)
+    labels = kmeans.labels_.reshape(height, width)
+    centers = np.round(kmeans.cluster_centers_).astype(np.uint8)
 
-    # Small facet pruning: filter tiny masks
-    def filter_small(mask, min_area=200):
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        filtered = np.zeros_like(mask)
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area >= min_area:
-                cv2.drawContours(filtered, [cnt], -1, 255, -1)
-        return filtered
-
-    # PNG
-    png_img = Image.new("RGB", (original_w, original_h), "white")
-    draw = ImageDraw.Draw(png_img)
-    font = ImageFont.load_default()
-
+    # PNG-output met kleurvlakken + nummers
+    color_img = np.zeros((height, width, 3), dtype=np.uint8)
     for i in range(num_colors):
-        mask = (labels_up == i).astype(np.uint8) * 255
-        mask = filter_small(mask)
-        color = tuple(centers[i])
+        color_img[labels == i] = centers[i]
 
-        for y in range(original_h):
-            for x in range(original_w):
-                if mask[y][x] == 255:
-                    png_img.putpixel((x, y), color)
+    png_pil = Image.fromarray(color_img).resize(original_size, Image.NEAREST)
+    draw = ImageDraw.Draw(png_pil)
+    try:
+        font = ImageFont.load_default()
+    except Exception:
+        font = None
 
-        # contour
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for cnt in contours:
-            approx = cv2.approxPolyDP(cnt, epsilon=2, closed=True)
-            if len(approx) > 2:
-                points = [(int(p[0][0]), int(p[0][1])) for p in approx]
-                draw.line(points + [points[0]], fill="black", width=1)
-
-        # centroid
-        m = cv2.moments(mask)
-        if m["m00"] != 0:
-            cx = int(m["m10"] / m["m00"])
-            cy = int(m["m01"] / m["m00"])
-            draw.text((cx, cy), str(i + 1), fill="black", font=font)
+    for y in range(0, height, 10):
+        for x in range(0, width, 10):
+            label = str(labels[y][x] + 1)
+            sx = int(x * original_size[0] / width)
+            sy = int(y * original_size[1] / height)
+            if font:
+                draw.text((sx, sy), label, fill="black", font=font)
 
     png_path = os.path.join(static_folder, f"{uid}.png")
-    png_img.save(png_path)
+    png_pil.save(png_path, format="PNG")
 
-    # SVG
-    svg = f"<svg xmlns='http://www.w3.org/2000/svg' width='{original_w}' height='{original_h}' viewBox='0 0 {original_w} {original_h}'>"
-    svg += "<style>text{font-size:10px;fill:black;} path{stroke:black;stroke-width:0.3;}</style>"
+    # SVG-output met gekleurde paden
+    svg = f"<svg xmlns='http://www.w3.org/2000/svg' width='{original_size[0]}' height='{original_size[1]}' viewBox='0 0 {original_size[0]} {original_size[1]}'>"
+    svg += "<style>text{font-size:10px;fill:black;} path{stroke:black;stroke-width:0.5;}</style>"
+
+    scale_x = original_size[0] / width
+    scale_y = original_size[1] / height
 
     for i in range(num_colors):
-        mask = (labels_up == i).astype(np.uint8) * 255
-        mask = filter_small(mask)
-        hex_color = '#%02x%02x%02x' % tuple(centers[i])
-
+        mask = (labels == i).astype(np.uint8) * 255
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        hex_color = '#%02x%02x%02x' % tuple(centers[i])
         for cnt in contours:
-            approx = cv2.approxPolyDP(cnt, epsilon=2, closed=True)
-            if len(approx) > 2:
-                d = "M " + " ".join(f"{int(p[0][0])},{int(p[0][1])}" for p in approx)
-                svg += f"<path d='{d}' fill='{hex_color}'/>"
+            path_d = "M " + " ".join(f"{int(p[0][0]*scale_x)},{int(p[0][1]*scale_y)}" for p in cnt)
+            svg += f"<path d='{path_d}' fill='{hex_color}'/>"
 
-        m = cv2.moments(mask)
-        if m["m00"] != 0:
-            cx = int(m["m10"] / m["m00"])
-            cy = int(m["m01"] / m["m00"])
-            svg += f"<text x='{cx}' y='{cy}'>{i + 1}</text>"
+    for y in range(0, height, 10):
+        for x in range(0, width, 10):
+            label = str(labels[y][x] + 1)
+            sx = int(x * scale_x)
+            sy = int(y * scale_y)
+            svg += f"<text x='{sx}' y='{sy}'>{label}</text>"
 
     svg += "</svg>"
     svg_path = os.path.join(static_folder, f"{uid}.svg")
