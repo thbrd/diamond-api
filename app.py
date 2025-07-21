@@ -157,7 +157,7 @@ def process_numbers():
         os.makedirs(output_dir, exist_ok=True)
 
         cmd = [
-        "npx", "ts-node",
+        "/usr/bin/npx", "ts-node",
         "/opt/paintbynumbersgenerator/src-cli/main.ts",
         "--input", input_path,
         "--output", output_dir,
@@ -166,7 +166,10 @@ def process_numbers():
         "--svg", "True"
     ]
 
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    print("STDOUT:", result.stdout.decode())
+    print("STDERR:", result.stderr.decode())
 
         if result.returncode != 0:
             return jsonify({
