@@ -132,6 +132,7 @@ def process():
 def home():
     return "✅ Diamond Painting API is live"
 
+@app.route("/process-numbers", methods=["POST"])
 def process_numbers():
     import tempfile
     import subprocess
