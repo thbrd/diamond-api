@@ -132,6 +132,7 @@ def process():
 def home():
     return "✅ Diamond Painting API is live"
 
+
 @app.route("/process-numbers", methods=["POST"])
 def process_numbers():
     if "image" not in request.files:
@@ -140,14 +141,13 @@ def process_numbers():
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
         num_colors = int(request.form.get("colors", 24))
-        result = generate_paint_by_numbers(image, num_colors)
-
-        # Verkleinde preview voor weergave
-        preview = result.copy()
-        preview_io = io.BytesIO()
-        preview.save(preview_io, format="PNG")
-        preview_io.seek(0)
-        return send_file(preview_io, mimetype="image/png")
+        uid = generate_paint_by_numbers(image, num_colors, static_folder="static")
+        return jsonify({
+            "svg": f"/static/{uid}.svg",
+            "png": f"/static/{uid}.png"
+        })
+    except Exception as e:
+        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 if __name__ == "__main__":

@@ -1,36 +1,48 @@
-from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 import json
-import random
+import uuid
+import os
 
 with open("paint_colors.json", "r") as f:
     COLOR_PALETTES = json.load(f)
 
-def generate_paint_by_numbers(image, num_colors=24):
-    image = image.resize((100, 100), Image.Resampling.BILINEAR)
-    img_array = np.array(image)
+def generate_paint_by_numbers(image, num_colors, static_folder="static"):
+    palette = np.array(COLOR_PALETTES[str(num_colors)])
+    img = image.convert("RGB")
+    width, height = img.size
+    img_np = np.array(img).reshape(-1, 3)
 
-    colors = COLOR_PALETTES[str(num_colors)]
-    palette = np.array(colors)
-    img_flat = img_array.reshape(-1, 3)
-
-    # Bereken afstand tot alle kleuren
-    diffs = np.linalg.norm(img_flat[:, None, :] - palette[None, :, :], axis=2)
+    diffs = np.linalg.norm(img_np[:, None, :] - palette[None, :, :], axis=2)
     closest = np.argmin(diffs, axis=1)
-    labels = closest.reshape(img_array.shape[:2])
-    indexed_img = palette[labels]
+    labels = closest.reshape((height, width))
+    remapped = palette[labels]
 
-    # SVG-achtige nummering op canvas
-    preview = Image.new("RGB", image.size, "white")
-    draw = ImageDraw.Draw(preview)
+    color_img = Image.fromarray(remapped.astype(np.uint8))
+    number_img = Image.new("RGB", (width, height), "white")
+    draw = ImageDraw.Draw(number_img)
     font = ImageFont.load_default()
 
-    for y in range(labels.shape[0]):
-        for x in range(labels.shape[1]):
-            color = tuple(indexed_img[y, x])
-            label = int(labels[y, x]) + 1
-            preview.putpixel((x, y), color)
-            if x % 10 == 0 and y % 10 == 0:
-                draw.text((x, y), str(label), fill="black", font=font)
+    for y in range(0, height, 10):
+        for x in range(0, width, 10):
+            label = str(int(labels[y][x]) + 1)
+            draw.text((x, y), label, fill="black", font=font)
 
-    return preview
+    # SVG-bestand genereren
+    svg = f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}'>"
+    for y in range(0, height, 10):
+        for x in range(0, width, 10):
+            label = str(int(labels[y][x]) + 1)
+            svg += f"<text x='{x}' y='{y + 8}' font-size='10' fill='black'>{label}</text>"
+    svg += "</svg>"
+
+    uid = str(uuid.uuid4())
+    svg_path = os.path.join(static_folder, f"{uid}.svg")
+    png_path = os.path.join(static_folder, f"{uid}.png")
+
+    with open(svg_path, "w") as f:
+        f.write(svg)
+
+    color_img.save(png_path, format="PNG")
+
+    return uid
