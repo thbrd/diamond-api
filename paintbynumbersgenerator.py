@@ -1,75 +1,64 @@
+
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 import cv2
-import uuid
-import os
-from sklearn.cluster import KMeans
+from PIL import Image, ImageDraw, ImageFont
 
-def generate_paint_by_numbers(image, num_colors, static_folder="static"):
-    uid = str(uuid.uuid4())
-    os.makedirs(static_folder, exist_ok=True)
+def generate_paint_by_numbers(image: Image.Image, num_colors: int = 24) -> Image.Image:
+    image = image.convert("RGB")
+    img = np.array(image)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-    original_size = image.size
-    img = image.copy()
-    MAX_ANALYZE_SIZE = 400
-    img.thumbnail((MAX_ANALYZE_SIZE, MAX_ANALYZE_SIZE), Image.Resampling.BICUBIC)
-    width, height = img.size
+    # Rescale image for clustering
+    max_size = 1024  # Langste zijde max, behoud aspect ratio
+    if max(img.shape[:2]) > max_size:
+        scale = max_size / max(img.shape[:2])
+        
+    h, w = img.shape[:2]
+    if max(h, w) > max_size:
+        scale = max_size / max(h, w)
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
 
-    np_img = np.array(img)
-    flat_img = np_img.reshape(-1, 3)
 
-    kmeans = KMeans(n_clusters=num_colors, random_state=42).fit(flat_img)
-    labels = kmeans.labels_.reshape(height, width)
-    centers = np.round(kmeans.cluster_centers_).astype(np.uint8)
+    Z = img.reshape((-1, 3))
+    Z = np.float32(Z)
 
-    # PNG-output met kleurvlakken + nummers
-    color_img = np.zeros((height, width, 3), dtype=np.uint8)
-    for i in range(num_colors):
-        color_img[labels == i] = centers[i]
+    # KMeans clustering
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    _, labels, centers = cv2.kmeans(Z, num_colors, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
 
-    png_pil = Image.fromarray(color_img).resize(original_size, Image.NEAREST)
-    draw = ImageDraw.Draw(png_pil)
-    try:
-        font = ImageFont.load_default()
-    except Exception:
-        font = None
+    centers = np.uint8(centers)
+    res = centers[labels.flatten()]
+    clustered_img = res.reshape((img.shape))
 
-    for y in range(0, height, 10):
-        for x in range(0, width, 10):
-            label = str(labels[y][x] + 1)
-            sx = int(x * original_size[0] / width)
-            sy = int(y * original_size[1] / height)
-            if font:
-                draw.text((sx, sy), label, fill="black", font=font)
+    # Create mask for each label
+    label_image = labels.reshape((img.shape[0], img.shape[1]))
+    contour_img = clustered_img.copy()
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 1.2
+    line_thickness = 1
 
-    png_path = os.path.join(static_folder, f"{uid}.png")
-    png_pil.save(png_path, format="PNG")
-
-    # SVG-output met gekleurde paden
-    svg = f"<svg xmlns='http://www.w3.org/2000/svg' width='{original_size[0]}' height='{original_size[1]}' viewBox='0 0 {original_size[0]} {original_size[1]}'>"
-    svg += "<style>text{font-size:10px;fill:black;} path{stroke:black;stroke-width:0.5;}</style>"
-
-    scale_x = original_size[0] / width
-    scale_y = original_size[1] / height
-
-    for i in range(num_colors):
-        mask = (labels == i).astype(np.uint8) * 255
+    for label_val in range(num_colors):
+        mask = np.uint8(label_image == label_val)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        hex_color = '#%02x%02x%02x' % tuple(centers[i])
+
         for cnt in contours:
-            path_d = "M " + " ".join(f"{int(p[0][0]*scale_x)},{int(p[0][1]*scale_y)}" for p in cnt)
-            svg += f"<path d='{path_d}' fill='{hex_color}'/>"
+            if cv2.contourArea(cnt) < 50:
+                continue
 
-    for y in range(0, height, 10):
-        for x in range(0, width, 10):
-            label = str(labels[y][x] + 1)
-            sx = int(x * scale_x)
-            sy = int(y * scale_y)
-            svg += f"<text x='{sx}' y='{sy}'>{label}</text>"
+            # Draw contour
+            cv2.drawContours(contour_img, [cnt], -1, (0, 0, 0), line_thickness)
 
-    svg += "</svg>"
-    svg_path = os.path.join(static_folder, f"{uid}.svg")
-    with open(svg_path, "w", encoding="utf-8") as f:
-        f.write(svg)
+            # Get center of contour and label
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                cv2.putText(contour_img, str(label_val + 1), (cX - 5, cY + 5), font, font_scale, (0, 0, 0), line_thickness, cv2.LINE_AA)
 
-    return uid
+    contour_img = cv2.cvtColor(contour_img, cv2.COLOR_BGR2RGB)
+    # === Vergelijkbaar met svgSizeMultiplier: verhoog resolutie van eindresultaat ===
+    scale_multiplier = 3
+    upscaled = contour_img.repeat(scale_multiplier, axis=0).repeat(scale_multiplier, axis=1)
+    return Image.fromarray(upscaled)

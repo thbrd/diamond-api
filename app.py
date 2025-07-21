@@ -132,29 +132,64 @@ def process():
 def home():
     return "✅ Diamond Painting API is live"
 
-
 @app.route("/process-numbers", methods=["POST"])
-def process_numbers():
-    if "image" not in request.files:
-        return jsonify({"error": "Geen afbeelding geüpload."}), 400
+@app.post("/process-numbers")
+async def process_numbers(file: UploadFile = File(...), colors: int = Form(...)):
+    import tempfile
+    import subprocess
+    import shutil
+    import uuid
+
+    # Tijdelijke opslaglocatie
+    temp_dir = tempfile.mkdtemp()
+    input_path = os.path.join(temp_dir, "input.png")
+    output_basename = str(uuid.uuid4())
+
+    # Opslaan van geüploade afbeelding
+    with open(input_path, "wb") as image_file:
+        shutil.copyfileobj(file.file, image_file)
+
+    # CLI aanroep - paintbynumbersgenerator
+    output_dir = "/tmp/pbn_output_" + output_basename
+    os.makedirs(output_dir, exist_ok=True)
+
+    cmd = [
+        "python3",
+        "/opt/paintbynumbersgenerator/main.py",
+        "--input", input_path,
+        "--output", output_dir,
+        "--colors", str(colors),
+        "--dither", "True",
+        "--svg", "True"
+    ]
+
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    if result.returncode != 0:
+        return {"error": "Generatie mislukt", "details": result.stderr.decode()}
+
+    # SVG en PNG zoeken
+    svg_path = os.path.join(output_dir, "output.svg")
+    png_path = os.path.join(output_dir, "output.png")
+
+    if not os.path.exists(svg_path) or not os.path.exists(png_path):
+        return {"error": "Bestanden niet gevonden na generatie"}
+
+    # Resultaat retourneren aan frontend
+    return FileResponse(svg_path, media_type="image/svg+xml")
     try:
         file = request.files["image"]
         image = Image.open(file.stream).convert("RGB")
         num_colors = int(request.form.get("colors", 24))
-        uid = generate_paint_by_numbers(image, num_colors, static_folder="static")
-        return jsonify({
-            "svg": f"/static/{uid}.svg",
-            "png": f"/static/{uid}.png"
-        })
-    
+        result = generate_paint_by_numbers(image, num_colors)
+
+        # Verkleinde preview voor weergave
+        preview = result.copy()
+        preview_io = io.BytesIO()
+        preview.save(preview_io, format="PNG")
+        preview_io.seek(0)
+        return send_file(preview_io, mimetype="image/png")
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
-    
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
