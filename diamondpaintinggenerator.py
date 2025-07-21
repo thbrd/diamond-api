@@ -1,4 +1,3 @@
-
 from PIL import Image, ImageDraw
 import numpy as np
 import json
@@ -53,5 +52,3 @@ def generate_diamond_painting(image, shape="square"):
     (canvas_w, canvas_h), (stones_w, stones_h) = suggest_best_canvas_format(image)
     result, codes, w, h = map_to_dmc(image, stones_w, stones_h, shape=shape)
     return result, {"canvas_cm": f"{canvas_w}x{canvas_h}", "stones": f"{w}x{h}"}
-
-print(f'✅ Bestand opgeslagen op: {output_path}')
