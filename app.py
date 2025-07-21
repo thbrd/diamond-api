@@ -1,13 +1,12 @@
-
-from flask import send_file, Flask, request, jsonify
+from paintbynumbersgenerator import generate_paint_by_numbers
+from flask import send_file, Flask, request, jsonify, send_file
 from flask_cors import CORS
 from PIL import Image, ImageDraw
 import numpy as np
 import io
 import json
 import os
-import subprocess
-import tempfile
+import base64
 
 app = Flask(__name__)
 CORS(app, expose_headers=["X-Canvas-Format", "X-Stones", "X-Adviesformaat"])
@@ -26,6 +25,7 @@ def suggest_best_canvas_format(image, dpi_per_mm=4, max_stones=100_000):
     img_w, img_h = image.size
     aspect_ratio = img_w / img_h
 
+    # Stel standaard canvas hoogte in mm
     base_height_mm = 400
     base_width_mm = int(base_height_mm * aspect_ratio)
 
@@ -84,18 +84,22 @@ def process():
         image = Image.open(file.stream).convert("RGB")
         shape = request.form.get("shape", "square")
 
+        # Afmeting controleren
         MIN_WIDTH = 800
         MIN_HEIGHT = 800
         if image.width < MIN_WIDTH or image.height < MIN_HEIGHT:
             return jsonify({"error": "De foto is te klein voor een scherp eindresultaat. Upload een grotere afbeelding."}), 400
 
+        # Bekende diamond painting formaten
         standaard_formaten = [
             (20, 30), (30, 40), (40, 50), (50, 60),
             (60, 80), (80, 100), (90, 120), (100, 150)
         ]
 
+        # Bepaal beeldverhouding
         aspect_ratio = image.width / image.height
 
+        # Zoek formaat met dichtstbijzijnde verhouding
         def formaat_score(f):
             w, h = f
             return abs((w / h) - aspect_ratio)
@@ -128,50 +132,23 @@ def process():
 def home():
     return "✅ Diamond Painting API is live"
 
+
 @app.route("/process-numbers", methods=["POST"])
 def process_numbers():
     if "image" not in request.files:
         return jsonify({"error": "Geen afbeelding geüpload."}), 400
     try:
         file = request.files["image"]
-        colors = request.form.get("colors", "24")
-        temp_dir = tempfile.mkdtemp()
-        input_path = os.path.join(temp_dir, "input.jpg")
-        output_dir = os.path.join(temp_dir, "out")
-
-        file.save(input_path)
-
-        command = [
-            "/opt/paintbynumbersgenerator/venv/bin/python3",  # pas aan indien nodig
-            "main.py",
-            input_path,
-            "--colors", colors,
-            "--output", output_dir
-        ]
-
-        subprocess.run(command, check=True, cwd="/opt/paintbynumbersgenerator")
-
-        svg_path = os.path.join(output_dir, "output.svg")
-        png_path = os.path.join(output_dir, "output.png")
-
-        if not os.path.exists(svg_path) or not os.path.exists(png_path):
-            return jsonify({"error": "Fout tijdens genereren van SVG of PNG"}), 500
-
-        with open(svg_path, "r", encoding="utf-8") as f:
-            svg_content = f.read()
-
+        image = Image.open(file.stream).convert("RGB")
+        num_colors = int(request.form.get("colors", 24))
+        uid = generate_paint_by_numbers(image, num_colors, static_folder="static")
         return jsonify({
-            "svg": svg_content,
-            "png": f"/preview/{os.path.basename(png_path)}"
+            "svg": f"/static/{uid}.svg",
+            "png": f"/static/{uid}.png"
         })
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": f"CLI tool faalde: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
-
-@app.route("/preview/<filename>")
-def serve_preview(filename):
-    return send_file(f"/tmp/{filename}", mimetype="image/png")
-
+    except Exception as e:
+        return jsonify({"error": f"Fout tijdens verwerking: {str(e)}"}), 500
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

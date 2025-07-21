@@ -23,7 +23,7 @@ def generate_paint_by_numbers(image, num_colors, static_folder="static"):
     labels_up = cv2.resize(labels_small.astype(np.uint8), (original_w, original_h), interpolation=cv2.INTER_NEAREST)
 
     # Small facet pruning: filter tiny masks
-    def filter_small(mask, min_area=100):
+    def filter_small(mask, min_area=200):
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         filtered = np.zeros_like(mask)
         for cnt in contours:
@@ -35,8 +35,7 @@ def generate_paint_by_numbers(image, num_colors, static_folder="static"):
     # PNG
     png_img = Image.new("RGB", (original_w, original_h), "white")
     draw = ImageDraw.Draw(png_img)
-    font_size = max(10, original_w // 100)
-    font = ImageFont.truetype("arial.ttf", font_size)
+    font = ImageFont.load_default()
 
     for i in range(num_colors):
         mask = (labels_up == i).astype(np.uint8) * 255
